@@ -117,6 +117,8 @@ final notificationsCenterNotifierProvider =
   NotificationsCenterNotifier.new,
 );
 
+final notificationsCenterProvider = notificationsCenterNotifierProvider;
+
 /// Aggregates recent activity items based on user role (Parent vs Child)
 final aggregatedNotificationsProvider =
     Provider.autoDispose<List<AppNotificationItem>>((ref) {

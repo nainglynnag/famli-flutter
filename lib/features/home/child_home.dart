@@ -11,6 +11,8 @@ import '../../providers/api_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/i18n_provider.dart';
+import '../../providers/notifications_center_provider.dart';
+import '../../theme/app_colors.dart';
 import '../../widgets/common.dart';
 import '../../widgets/sticky_header.dart';
 import 'widgets/confetti_burst.dart';
@@ -145,6 +147,10 @@ class _ChildHomeState extends ConsumerState<ChildHome> {
         : (streakGoals.isNotEmpty ? (streakCount > 0 ? 1.0 : 0.0) : 0.0);
 
     final childPointEntries = pointsAsync.value ?? [];
+    final notificationsState = ref.watch(notificationsCenterProvider);
+    final unreadPointEntries = childPointEntries
+        .where((entry) => !notificationsState.readIds.contains('point_${entry.id}'))
+        .toList();
 
     return Stack(
       children: [
@@ -314,61 +320,152 @@ class _ChildHomeState extends ConsumerState<ChildHome> {
                   ],
                 ),
               ),
-              ...childPointEntries.map((entry) {
+              ...unreadPointEntries.map((entry) {
                 final isGift = entry.points >= 0;
+                final notiId = 'point_${entry.id}';
                 return Padding(
-                  padding: const EdgeInsets.only(top: 18),
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  padding: const EdgeInsets.only(top: 14),
+                  child: Dismissible(
+                    key: ValueKey(notiId),
+                    direction: DismissDirection.horizontal,
+                    onDismissed: (_) {
+                      ref.read(notificationsCenterProvider.notifier).markAsRead(notiId);
+                    },
+                    background: Container(
+                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: (isGift ? AppColors.progressEmerald : AppColors.penaltyCoral).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Icon(
+                        Icons.check_circle_outline_rounded,
+                        color: isGift ? AppColors.progressEmerald : AppColors.penaltyCoral,
                       ),
                     ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            isGift
-                                ? t.t('home.pointGiftIcon')
-                                : t.t('home.pointPenaltyIcon'),
-                            style: const TextStyle(fontSize: 26),
-                          ),
+                    secondaryBackground: Container(
+                      alignment: Alignment.centerRight,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: (isGift ? AppColors.progressEmerald : AppColors.penaltyCoral).withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Icon(
+                        Icons.check_circle_outline_rounded,
+                        color: isGift ? AppColors.progressEmerald : AppColors.penaltyCoral,
+                      ),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: isDark
+                              ? (isGift ? const Color(0xFF166534) : const Color(0xFF991B1B))
+                              : (isGift ? const Color(0xFFBBF7D0) : const Color(0xFFFECACA)),
+                          width: 1.5,
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${isGift ? '+' : '-'}${entry.points.abs()} ${t.t('home.seedsSuffix')}',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: isDark ? Colors.white : const Color(0xFF111827),
+                        boxShadow: [
+                          BoxShadow(
+                            color: (isGift ? AppColors.progressEmerald : AppColors.penaltyCoral)
+                                .withValues(alpha: isDark ? 0.15 : 0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              isGift
+                                  ? t.t('home.pointGiftIcon')
+                                  : t.t('home.pointPenaltyIcon'),
+                              style: const TextStyle(fontSize: 26),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      '${isGift ? '+' : '-'}${entry.points.abs()} ${t.t('home.seedsSuffix')}',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: isGift
+                                            ? (isDark ? const Color(0xFF86EFAC) : const Color(0xFF15803D))
+                                            : (isDark ? const Color(0xFFFCA5A5) : const Color(0xFFB91C1C)),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                      icon: Icon(
+                                        Icons.close_rounded,
+                                        size: 18,
+                                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                      ),
+                                      tooltip: 'Dismiss',
+                                      onPressed: () {
+                                        ref.read(notificationsCenterProvider.notifier).markAsRead(notiId);
+                                      },
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              if (entry.note != null)
-                                Text(
-                                  entry.note!,
-                                  style: TextStyle(
-                                    color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF1F2937),
-                                    fontSize: 14,
+                                if (entry.note != null && entry.note!.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    entry.note!,
+                                    style: TextStyle(
+                                      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                                      fontSize: 14,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton.icon(
+                                    style: TextButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      backgroundColor: (isGift ? AppColors.progressEmerald : AppColors.brandPrimary)
+                                          .withValues(alpha: isDark ? 0.2 : 0.1),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      ref.read(notificationsCenterProvider.notifier).markAsRead(notiId);
+                                    },
+                                    icon: const Icon(Icons.check_rounded, size: 14),
+                                    label: const Text(
+                                      'Got it 👍',
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                    ),
                                   ),
                                 ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -566,33 +663,26 @@ class _ChildHomeState extends ConsumerState<ChildHome> {
                 );
               }),
               const SizedBox(height: 18),
-              OutlinedButton(
-                onPressed: () => context.go('/profile'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  side: BorderSide(
-                    color: isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => context.go('/history'),
+                  icon: const Icon(Icons.history_rounded, size: 20),
+                  label: Text(
+                    t.t('home.actions.taskHistory'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF4B5563),
+                    ),
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-                child: Text(
-                  t.t('home.openProfile'),
-                  style: TextStyle(
-                    color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF4B5563),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => context.go('/history'),
-                child: Text(
-                  t.t('home.actions.taskHistory'),
-                  style: const TextStyle(
-                    color: Color(0xFF6C63FF),
-                    fontWeight: FontWeight.w600,
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side: BorderSide(
+                      color: isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
                 ),
               ),
