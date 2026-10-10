@@ -21,8 +21,10 @@ import '../features/profile/profile_screen.dart';
 import '../features/tasks/routine_detail_screen.dart';
 import '../features/tasks/task_detail_screen.dart';
 import '../features/tasks/tasks_screen.dart';
+import '../l10n/translations.dart';
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
+import '../providers/i18n_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/frosted_nav_bar.dart';
 import '../widgets/sprout_loading.dart';
@@ -181,29 +183,30 @@ class _AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = ref.watch(translationsProvider);
     final profile = ref.watch(authProvider).value?.profile;
     final isParent = profile?.role == UserRole.parent;
 
     final items = [
-      const FrostedNavItem(
+      FrostedNavItem(
         icon: Icons.home_outlined,
         activeIcon: Icons.home_rounded,
-        label: 'Home',
+        label: t.t('nav.home'),
       ),
-      const FrostedNavItem(
+      FrostedNavItem(
         icon: Icons.checklist_outlined,
         activeIcon: Icons.checklist_rounded,
-        label: 'Tasks',
+        label: t.t('nav.tasks'),
       ),
       FrostedNavItem(
         icon: isParent ? Icons.group_outlined : Icons.card_giftcard_outlined,
         activeIcon: isParent ? Icons.group_rounded : Icons.card_giftcard_rounded,
-        label: isParent ? 'Family' : 'Rewards',
+        label: isParent ? t.t('nav.family') : t.t('nav.rewards'),
       ),
-      const FrostedNavItem(
+      FrostedNavItem(
         icon: Icons.person_outline_rounded,
         activeIcon: Icons.person_rounded,
-        label: 'Profile',
+        label: t.t('nav.profile'),
       ),
     ];
 

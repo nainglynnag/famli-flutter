@@ -3,29 +3,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../l10n/translations.dart';
 import '../../models/privilege.dart';
 import '../../models/user.dart';
 import '../../providers/api_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
+import '../../providers/i18n_provider.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/common.dart';
 import '../../widgets/sticky_header.dart';
 
-const _statusCopy = {
-  'PENDING': 'Waiting for approval',
-  'APPROVED': 'Approved',
-  'REJECTED': 'Try again soon',
-};
-
-String _statusLabel(PrivilegeRequestStatus status) {
+String _statusLabel(PrivilegeRequestStatus status, Map<String, dynamic> t) {
   switch (status) {
     case PrivilegeRequestStatus.approved:
-      return _statusCopy['APPROVED']!;
+      return t.t('childPrivileges.approved');
     case PrivilegeRequestStatus.rejected:
-      return _statusCopy['REJECTED']!;
+      return t.t('childPrivileges.tryAgainSoon');
     default:
-      return _statusCopy['PENDING']!;
+      return t.t('childPrivileges.waitingForApproval');
   }
 }
 
@@ -37,6 +33,7 @@ class PrivilegesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final t = ref.watch(translationsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final profile = ref.watch(authProvider).value?.profile;
     final isChild = profile?.role == UserRole.child;
@@ -89,11 +86,11 @@ class PrivilegesScreen extends ConsumerWidget {
           availableSeeds: availableSeeds,
           familyPrivileges: privileges,
           onSubmitCustom: (title, cost, note) async {
-            final t = ref.read(authProvider).value?.token;
-            if (t == null) return;
+            final authTok = ref.read(authProvider).value?.token;
+            if (authTok == null) return;
             try {
               await ref.read(apiClientProvider).requestCustomPrivilege(
-                    t,
+                    authTok,
                     title: title,
                     cost: cost,
                     note: note,
@@ -104,7 +101,7 @@ class PrivilegesScreen extends ConsumerWidget {
               if (context.mounted) {
                 AppToast.showSuccess(
                   context,
-                  'Ticket requested! Waiting for parent review 🎟️',
+                  t.t('childPrivileges.toastRequestedSuccess'),
                 );
               }
             } catch (error) {
@@ -114,11 +111,11 @@ class PrivilegesScreen extends ConsumerWidget {
             }
           },
           onSubmitSpecific: (privilegeId) async {
-            final t = ref.read(authProvider).value?.token;
-            if (t == null) return;
+            final authTok = ref.read(authProvider).value?.token;
+            if (authTok == null) return;
             try {
               await ref.read(apiClientProvider).requestPrivilege(
-                    t,
+                    authTok,
                     privilegeId,
                   );
               ref.invalidate(myPrivilegeRequestsProvider);
@@ -127,7 +124,7 @@ class PrivilegesScreen extends ConsumerWidget {
               if (context.mounted) {
                 AppToast.showSuccess(
                   context,
-                  'Ticket requested! Waiting for parent review 🎟️',
+                  t.t('childPrivileges.toastRequestedSuccess'),
                 );
               }
             } catch (error) {
@@ -151,7 +148,7 @@ class PrivilegesScreen extends ConsumerWidget {
         if (context.mounted) {
           AppToast.showSuccess(
             context,
-            'Requested! Hang tight—your parent will take a look.',
+            t.t('childPrivileges.toastHangTight'),
           );
         }
       } catch (error) {
@@ -164,18 +161,18 @@ class PrivilegesScreen extends ConsumerWidget {
     Widget buildPrivilegeCard(PrivilegeDefinition privilege) {
       final lastRequest = latestByPrivilege[privilege.id];
       final statusLabel =
-          lastRequest != null ? _statusLabel(lastRequest.status) : null;
+          lastRequest != null ? _statusLabel(lastRequest.status, t) : null;
       final insufficientSeeds = availableSeeds < privilege.cost;
       final isLocked = lastRequest?.status == PrivilegeRequestStatus.pending ||
           lastRequest?.status == PrivilegeRequestStatus.approved;
       final disabled = isLocked || insufficientSeeds;
       final buttonLabel = insufficientSeeds
-          ? 'Need seeds'
+          ? t.t('childPrivileges.needSeeds')
           : lastRequest?.status == PrivilegeRequestStatus.approved
-              ? 'Ticket ready'
+              ? t.t('childPrivileges.ticketReady')
               : lastRequest?.status == PrivilegeRequestStatus.pending
-                  ? 'Pending...'
-                  : 'Request';
+                  ? t.t('childPrivileges.pendingStatus')
+                  : t.t('childPrivileges.requestButton');
 
       return Container(
         padding: const EdgeInsets.all(14),
@@ -218,7 +215,7 @@ class PrivilegesScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${privilege.cost} seeds',
+                  '${privilege.cost} ${t.t('childPrivileges.seedsSuffix')}',
                   style: TextStyle(
                     color: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4C1D95),
                     fontWeight: FontWeight.w700,
@@ -249,7 +246,7 @@ class PrivilegesScreen extends ConsumerWidget {
             if (insufficientSeeds) ...[
               const SizedBox(height: 4),
               Text(
-                'Need ${privilege.cost} seeds ($availableSeeds left)',
+                '${t.t('childPrivileges.needSeeds')} ${privilege.cost} ${t.t('childPrivileges.seedsSuffix')} ($availableSeeds ${t.t('childPrivileges.leftSuffix')})',
                 style: const TextStyle(
                   color: Color(0xFFEA580C),
                   fontSize: 10,
@@ -289,8 +286,8 @@ class PrivilegesScreen extends ConsumerWidget {
       body: Column(
         children: [
           StickyTopBar(
-            title: 'Privileges 🌟',
-            subtitle: 'Trade your seeds for shared experiences.',
+            title: t.t('childPrivileges.title'),
+            subtitle: t.t('childPrivileges.subtitle'),
             showBackButton: showBackButton ??
                 (context.canPop() ||
                     GoRouterState.of(context).matchedLocation == '/privileges'),
@@ -308,7 +305,7 @@ class PrivilegesScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Heads up',
+                          t.t('childPrivileges.headsUpTitle'),
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             color: Theme.of(context).brightness == Brightness.dark
@@ -317,7 +314,7 @@ class PrivilegesScreen extends ConsumerWidget {
                           ),
                         ),
                         LightText(
-                          'Only child accounts can request privileges. Use the Family Overview screen to manage settings as a parent.',
+                          t.t('childPrivileges.headsUpChildOnly'),
                         ),
                       ],
                     ),
@@ -328,7 +325,7 @@ class PrivilegesScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Available privileges',
+                          t.t('childPrivileges.availablePrivileges'),
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             color: Theme.of(context).brightness == Brightness.dark
@@ -336,12 +333,12 @@ class PrivilegesScreen extends ConsumerWidget {
                                 : const Color(0xFF111827),
                           ),
                         ),
-                        const LightText(
-                          'Tap request to send a gentle ask to your parent.',
+                        LightText(
+                          t.t('childPrivileges.availablePrivilegesHint'),
                         ),
                         const SizedBox(height: 12),
                         if (privileges.isEmpty)
-                          const LightText('No privileges found yet.')
+                          LightText(t.t('childPrivileges.noPrivilegesFound'))
                         else
                           Builder(
                             builder: (context) {
@@ -395,7 +392,7 @@ class PrivilegesScreen extends ConsumerWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            'Privilege tickets',
+                            t.t('childPrivileges.privilegeTickets'),
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               color: Theme.of(context).brightness == Brightness.dark
@@ -417,9 +414,9 @@ class PrivilegesScreen extends ConsumerWidget {
                             ),
                           ),
                           icon: const Icon(Icons.add, size: 14),
-                          label: const Text(
-                            'Request',
-                            style: TextStyle(
+                          label: Text(
+                            t.t('childPrivileges.requestAction'),
+                            style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                             ),
@@ -428,9 +425,9 @@ class PrivilegesScreen extends ConsumerWidget {
                         const SizedBox(width: 4),
                         TextButton(
                           onPressed: () => context.go('/privileges/history'),
-                          child: const Text(
-                            'History',
-                            style: TextStyle(
+                          child: Text(
+                            t.t('childPrivileges.historyAction'),
+                            style: const TextStyle(
                               color: Color(0xFF6C63FF),
                               fontWeight: FontWeight.w600,
                             ),
@@ -440,7 +437,7 @@ class PrivilegesScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Request custom or family rewards from your parent with earned seeds.',
+                      t.t('childPrivileges.privilegeTicketsSubtitle'),
                       style: TextStyle(
                         color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
                         fontSize: 12,
@@ -448,8 +445,8 @@ class PrivilegesScreen extends ConsumerWidget {
                     ),
                     const SizedBox(height: 12),
                     if (approvedTickets.isEmpty)
-                      const LightText(
-                        'No tickets yet. Tap "+ Request" to ask your parent!',
+                      LightText(
+                        t.t('childPrivileges.noTicketsYet'),
                       )
                     else
                       ...approvedTickets.map(
@@ -478,7 +475,7 @@ class PrivilegesScreen extends ConsumerWidget {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    ticket.childName ?? 'You',
+                                    ticket.childName ?? t.t('childPrivileges.you'),
                                     style: TextStyle(
                                       color: Theme.of(context).brightness == Brightness.dark
                                           ? const Color(0xFFFDE68A)
@@ -498,7 +495,7 @@ class PrivilegesScreen extends ConsumerWidget {
                                 ),
                               ),
                               Text(
-                                '${ticket.cost} seeds',
+                                '${ticket.cost} ${t.t('childPrivileges.seedsSuffix')}',
                                 style: TextStyle(
                                   color: Theme.of(context).brightness == Brightness.dark
                                       ? const Color(0xFFFBBF24)
@@ -507,7 +504,7 @@ class PrivilegesScreen extends ConsumerWidget {
                                 ),
                               ),
                               Text(
-                                'Approved ${_formatDate(ticket.resolvedAt ?? ticket.createdAt)}',
+                                '${t.t('childPrivileges.approvedOn')} ${_formatDate(ticket.resolvedAt ?? ticket.createdAt)}',
                                 style: TextStyle(
                                   color: Theme.of(context).brightness == Brightness.dark
                                       ? const Color(0xFFFDE68A)
@@ -528,7 +525,7 @@ class PrivilegesScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Pending requests',
+                      t.t('childPrivileges.pendingRequests'),
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         color: Theme.of(context).brightness == Brightness.dark
@@ -537,15 +534,15 @@ class PrivilegesScreen extends ConsumerWidget {
                       ),
                     ),
                     if (pendingRequests.isEmpty)
-                      const LightText(
-                        'No pending requests. Tap a privilege to get started.',
+                      LightText(
+                        t.t('childPrivileges.noPendingRequests'),
                       )
                     else
                       ...pendingRequests.map(
                         (request) => _PendingRow(
                           title: request.privilege.title,
-                          subtitle: '${request.cost} seeds',
-                          status: 'Waiting...',
+                          subtitle: '${request.cost} ${t.t('childPrivileges.seedsSuffix')}',
+                          status: t.t('childPrivileges.waiting'),
                           statusColor: const Color(0xFF6C63FF),
                           tone: request.childAvatarTone ?? profileTone,
                         ),
@@ -560,7 +557,7 @@ class PrivilegesScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Recently reviewed',
+                        t.t('childPrivileges.recentlyReviewed'),
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: Theme.of(context).brightness == Brightness.dark
@@ -571,8 +568,8 @@ class PrivilegesScreen extends ConsumerWidget {
                       ...rejectedRequests.map(
                         (request) => _PendingRow(
                           title: request.privilege.title,
-                          subtitle: 'Try requesting again later.',
-                          status: 'Rejected',
+                          subtitle: t.t('childPrivileges.tryRequestingAgain'),
+                          status: t.t('childPrivileges.rejected'),
                           statusColor: const Color(0xFFDC2626),
                           tone: request.childAvatarTone ?? profileTone,
                         ),
@@ -648,7 +645,7 @@ class _PendingRow extends StatelessWidget {
   }
 }
 
-class _RequestTicketSheet extends StatefulWidget {
+class _RequestTicketSheet extends ConsumerStatefulWidget {
   const _RequestTicketSheet({
     required this.availableSeeds,
     required this.familyPrivileges,
@@ -662,10 +659,10 @@ class _RequestTicketSheet extends StatefulWidget {
   final Future<void> Function(String privilegeId) onSubmitSpecific;
 
   @override
-  State<_RequestTicketSheet> createState() => _RequestTicketSheetState();
+  ConsumerState<_RequestTicketSheet> createState() => _RequestTicketSheetState();
 }
 
-class _RequestTicketSheetState extends State<_RequestTicketSheet> {
+class _RequestTicketSheetState extends ConsumerState<_RequestTicketSheet> {
   bool _isCustom = true;
   final _titleController = TextEditingController();
   final _costController = TextEditingController(text: '10');
@@ -691,6 +688,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final t = ref.watch(translationsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cost = _isCustom
         ? (num.tryParse(_costController.text.trim()) ?? 0)
@@ -735,7 +733,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Request Privilege Ticket 🎟️',
+                    t.t('childPrivileges.sheetTitle'),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -749,7 +747,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      '✨ ${widget.availableSeeds} seeds',
+                      '✨ ${widget.availableSeeds} ${t.t('childPrivileges.seedsSuffix')}',
                       style: const TextStyle(
                         color: Color(0xFFD97706),
                         fontWeight: FontWeight.w700,
@@ -761,7 +759,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Ask your parent for a custom reward or choose from family privileges.',
+                t.t('childPrivileges.sheetSubtitle'),
                 style: TextStyle(
                   fontSize: 13,
                   color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
@@ -773,7 +771,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
                   children: [
                     Expanded(
                       child: ChoiceChip(
-                        label: const Center(child: Text('Custom Request')),
+                        label: Center(child: Text(t.t('childPrivileges.customRequestChip'))),
                         selected: _isCustom,
                         onSelected: (val) {
                           if (val) setState(() => _isCustom = true);
@@ -783,7 +781,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: ChoiceChip(
-                        label: const Center(child: Text('Family Privileges')),
+                        label: Center(child: Text(t.t('childPrivileges.familyPrivilegesChip'))),
                         selected: !_isCustom,
                         onSelected: (val) {
                           if (val) setState(() => _isCustom = false);
@@ -796,7 +794,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
               ],
               if (_isCustom) ...[
                 Text(
-                  'What would you like to request? *',
+                  t.t('childPrivileges.whatToRequest'),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -808,7 +806,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
                   controller: _titleController,
                   style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w500),
                   decoration: InputDecoration(
-                    hintText: 'e.g. 30 mins video game, Trip to park, Pizza night...',
+                    hintText: t.t('childPrivileges.whatToRequestPlaceholder'),
                     hintStyle: const TextStyle(color: Color(0xFF64748B)),
                     filled: true,
                     fillColor: isDark ? const Color(0xFFE2E8F0) : const Color(0xFFF8FAFC),
@@ -823,7 +821,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'Seeds to spend *',
+                  t.t('childPrivileges.seedsToSpend'),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -852,7 +850,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
                 ),
                 const SizedBox(height: 14),
                 Text(
-                  'Note for parent (optional)',
+                  t.t('childPrivileges.noteForParent'),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -865,7 +863,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
                   maxLines: 2,
                   style: const TextStyle(color: Color(0xFF1E293B), fontWeight: FontWeight.w500),
                   decoration: InputDecoration(
-                    hintText: 'Why should you get this? (e.g. Done with homework early!)',
+                    hintText: t.t('childPrivileges.noteForParentPlaceholder'),
                     hintStyle: const TextStyle(color: Color(0xFF64748B)),
                     filled: true,
                     fillColor: isDark ? const Color(0xFFE2E8F0) : const Color(0xFFF8FAFC),
@@ -879,7 +877,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
                 ),
               ] else ...[
                 Text(
-                  'Select a privilege *',
+                  t.t('childPrivileges.selectPrivilege'),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -905,7 +903,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
                         return DropdownMenuItem(
                           value: p,
                           child: Text(
-                            '${p.title} (${p.cost} seeds)',
+                            '${p.title} (${p.cost} ${t.t('childPrivileges.seedsSuffix')})',
                             style: TextStyle(
                               color: isDark ? const Color(0xFF1E293B) : const Color(0xFF1E293B),
                             ),
@@ -922,7 +920,7 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Text(
-                    '⚠️ Not enough seeds! You have ${widget.availableSeeds} seeds but this costs $cost seeds.',
+                    '${t.t('childPrivileges.notEnoughSeedsWarning')} (${widget.availableSeeds}/$cost ${t.t('childPrivileges.seedsSuffix')})',
                     style: const TextStyle(
                       color: Color(0xFFEF4444),
                       fontSize: 12,
@@ -972,7 +970,9 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
                         )
                       : const Icon(Icons.send_rounded, size: 18),
                   label: Text(
-                    _submitting ? 'Submitting...' : 'Send Request to Parent',
+                    _submitting
+                        ? t.t('childPrivileges.sending')
+                        : t.t('childPrivileges.sendRequest'),
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
