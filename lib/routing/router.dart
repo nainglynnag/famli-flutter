@@ -12,6 +12,7 @@ import '../features/family/parents_screen.dart';
 import '../features/family/rewards_screen.dart';
 import '../features/history/history_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/onboarding/onboarding_screen.dart';
 import '../features/points/points_history_screen.dart';
 import '../features/points/points_screen.dart';
 import '../features/privileges/privileges_history_screen.dart';
@@ -22,12 +23,14 @@ import '../features/tasks/task_detail_screen.dart';
 import '../features/tasks/tasks_screen.dart';
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
+import '../providers/onboarding_provider.dart';
 import '../widgets/frosted_nav_bar.dart';
 
-/// Monitors auth state and triggers router redirects when session changes.
+/// Monitors auth and onboarding state and triggers router redirects when session changes.
 class _AuthRefreshListenable extends ChangeNotifier {
   _AuthRefreshListenable(Ref ref) {
     ref.listen(authProvider, (previous, next) => notifyListeners());
+    ref.listen(onboardingProvider, (previous, next) => notifyListeners());
   }
 }
 
@@ -41,16 +44,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       final authState = ref.read(authProvider);
       final loggedIn = authState.value?.isAuthenticated ?? false;
       final isLoading = authState.isLoading;
+      final onboardingAsync = ref.read(onboardingProvider);
+      final hasSeenOnboarding = onboardingAsync.value ?? false;
+
       final onAuthScreens =
           state.matchedLocation == '/login' ||
           state.matchedLocation == '/register';
       final onSplash = state.matchedLocation == '/';
+      final onOnboarding = state.matchedLocation == '/onboarding';
 
-      if (isLoading) {
+      if (isLoading || onboardingAsync.isLoading) {
         return onSplash ? null : '/';
       }
       if (!loggedIn) {
-        return onAuthScreens ? null : '/login';
+        if (!hasSeenOnboarding) {
+          return onOnboarding ? null : '/onboarding';
+        }
+        return (onAuthScreens || onOnboarding) ? null : '/login';
       }
       if (loggedIn && (onAuthScreens || onSplash)) {
         return '/home';
@@ -59,6 +69,10 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/', builder: (context, state) => const _SplashScreen()),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/register',

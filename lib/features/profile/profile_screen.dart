@@ -543,6 +543,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 10),
                     SizedBox(
                       width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.push('/onboarding'),
+                        icon: const Icon(Icons.explore_rounded, size: 18, color: Color(0xFF6C63FF)),
+                        label: Text(
+                          t.t('onboarding.replayTour'),
+                          style: TextStyle(
+                            color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
                       child: OutlinedButton(
                         onPressed: () => _triggerTestNotification(t),
                         style: OutlinedButton.styleFrom(
