@@ -207,6 +207,10 @@ class FirebaseApiClient implements ApiClient {
       'familyId': familyId,
       'family': family,
       'progress': progress,
+      'preferences': {
+        'themeMode': data['themeMode'],
+        'language': data['language'],
+      },
     });
   }
 
@@ -330,12 +334,16 @@ class FirebaseApiClient implements ApiClient {
     String? currentPassword,
     String? newPassword,
     String? familyTimezone,
+    String? themeMode,
+    String? language,
   }) => _guard(() async {
     final user = _currentUser;
     final updates = <String, dynamic>{};
     if (name != null) updates['name'] = name;
     if (avatarTone != null) updates['avatarTone'] = avatarTone;
     if (photoUrl != null) updates['photoUrl'] = photoUrl.isEmpty ? null : photoUrl;
+    if (themeMode != null) updates['themeMode'] = themeMode;
+    if (language != null) updates['language'] = language;
 
     if (newPassword != null) {
       if (currentPassword == null) {

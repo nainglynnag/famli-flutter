@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../constants/timezones.dart';
 import '../../core/api_exception.dart';
@@ -11,17 +12,19 @@ import '../../providers/api_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/i18n_provider.dart';
 import '../../providers/storage_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../widgets/app_toast.dart';
 import '../../widgets/common.dart';
 import '../../widgets/sticky_header.dart';
-import '../../widgets/theme_mode_toggle.dart';
 import '../../widgets/user_avatar.dart';
-import '../auth/widgets/language_toggle.dart';
-import 'package:image_picker/image_picker.dart';
 import 'widgets/timezone_picker_sheet.dart';
 
-/// Mirrors mobile/app/(app)/profile.tsx: display name, avatar tone, family
-/// timezone (parents only), password change, test notification, and logout.
+/// Reorganized Profile Screen featuring 5 compact groups:
+/// 1. Profile: avatar photo, tone palette, display name, username & role.
+/// 2. Preferences: labeled theme and language controls (for both parents & children).
+/// 3. Security: "Change password" row navigating to separate ChangePasswordScreen.
+/// 4. Family Settings: family timezone & device auto-sync (parents only).
+/// 5. Account: app tour replay & logout with confirmation.
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
@@ -31,8 +34,6 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late final TextEditingController _name;
-  late final TextEditingController _currentPassword = TextEditingController();
-  late final TextEditingController _newPassword = TextEditingController();
   late final TextEditingController _familyTimezone;
 
   late String _avatarTone;
@@ -114,8 +115,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   void dispose() {
     _name.dispose();
-    _currentPassword.dispose();
-    _newPassword.dispose();
     _familyTimezone.dispose();
     super.dispose();
   }
@@ -218,23 +217,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     setState(() => _saving = true);
     try {
-      await ref
-          .read(apiClientProvider)
-          .updateProfile(
+      await ref.read(apiClientProvider).updateProfile(
             token,
             name: _name.text.trim(),
             avatarTone: _avatarTone,
-            currentPassword: _currentPassword.text.isEmpty
-                ? null
-                : _currentPassword.text,
-            newPassword: _newPassword.text.isEmpty ? null : _newPassword.text,
             familyTimezone: authState?.profile?.role == UserRole.parent
                 ? _familyTimezone.text.trim()
                 : null,
           );
       await ref.read(authProvider.notifier).refreshProfile();
-      _currentPassword.clear();
-      _newPassword.clear();
       if (mounted) {
         AppToast.showSuccess(context, t.t('profile.alertUpdatedMessage'));
       }
@@ -246,9 +237,58 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
 
-  Future<void> _logout() async {
-    await ref.read(authProvider.notifier).logout();
-    if (mounted) context.go('/login');
+  Future<void> _confirmLogout(Map<String, dynamic> t) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        return AlertDialog(
+          backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            t.t('profile.logoutConfirmTitle'),
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: isDark ? Colors.white : const Color(0xFF111827),
+            ),
+          ),
+          content: Text(
+            t.t('profile.logoutConfirmMessage'),
+            style: TextStyle(
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF4B5569),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(
+                t.t('profile.cancel'),
+                style: TextStyle(
+                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF6B7280),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFDC2626),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: Text(
+                t.t('profile.logout'),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      await ref.read(authProvider.notifier).logout();
+      if (mounted) context.go('/login');
+    }
   }
 
   @override
@@ -275,6 +315,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final profile = ref.watch(authProvider).value?.profile;
     final isParent = profile?.role == UserRole.parent;
+    final currentTheme = ref.watch(themeModeProvider);
+    final currentLang = ref.watch(i18nProvider);
 
     final toneLabels = (t['profile'] as Map<String, dynamic>?)?['toneLabels']
             as Map<String, dynamic>? ??
@@ -287,30 +329,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         findTimezoneByName(_familyTimezone.text) ??
         findTimezoneByName(_deviceTimezoneId);
 
-    return Column(
-      children: [
-        StickyTopBar(
-          title: t.t('profile.title'),
-          subtitle: t.t('profile.subtitle'),
-          showBackButton: context.canPop(),
-          showNotificationBell: true,
-          trailing: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ThemeModeToggle(),
-              SizedBox(width: 8),
-              LanguageToggle(),
-            ],
+    return Material(
+      type: MaterialType.transparency,
+      child: Column(
+        children: [
+          // Calm Sticky Header: Title, Subtitle, Notification Bell (no trailing toggles)
+          StickyTopBar(
+            title: t.t('profile.title'),
+            subtitle: t.t('profile.subtitle'),
+            showBackButton: context.canPop(),
+            showNotificationBell: true,
           ),
-        ),
         Expanded(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 120),
             children: [
+              // ==========================================
+              // GROUP 1: PROFILE
+              // ==========================================
               SectionCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _SectionHeader(
+                      icon: Icons.person_rounded,
+                      title: t.t('profile.sectionProfile'),
+                    ),
+                    const SizedBox(height: 16),
                     Center(
                       child: Column(
                         children: [
@@ -362,8 +407,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   style: const TextStyle(fontSize: 13),
                                 ),
                                 style: FilledButton.styleFrom(
-                                  backgroundColor: const Color(0xFFEDE9FE),
-                                  foregroundColor: const Color(0xFF4C1D95),
+                                  backgroundColor: isDark
+                                      ? const Color(0xFF312E81).withValues(alpha: 0.7)
+                                      : const Color(0xFFEDE9FE),
+                                  foregroundColor: isDark
+                                      ? const Color(0xFFA5B4FC)
+                                      : const Color(0xFF4C1D95),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 14,
                                     vertical: 8,
@@ -394,30 +443,66 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 ),
                             ],
                           ),
-                          const SizedBox(height: 16),
-                          const Divider(color: Color(0xFFF1F5F9), height: 1),
-                          const SizedBox(height: 14),
                         ],
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    const Divider(height: 1),
+                    const SizedBox(height: 14),
+
+                    // Username & Role Details
                     if (profile?.username != null) ...[
-                      Text(
-                        t.t('profile.usernameLabel'),
-                        style: TextStyle(
-                          color: isDark ? const Color(0xFFF4F4F4) : const Color(0xFF475569),
-                          fontWeight: FontWeight.w600,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                t.t('profile.usernameLabel'),
+                                style: TextStyle(
+                                  color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '@${profile!.username}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                  color: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF1F2933),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isParent
+                                  ? const Color(0xFF8B5CF6).withValues(alpha: isDark ? 0.3 : 0.15)
+                                  : const Color(0xFF10B981).withValues(alpha: isDark ? 0.3 : 0.15),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              isParent ? 'PARENT' : 'CHILD',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: isParent
+                                    ? (isDark ? const Color(0xFFA78BFA) : const Color(0xFF6D28D9))
+                                    : (isDark ? const Color(0xFF6EE7B7) : const Color(0xFF047857)),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        profile!.username,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF1F2933),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
                     ],
+
+                    // Display Name
                     _FieldLabel(t.t('profile.displayNameLabel')),
                     const SizedBox(height: 6),
                     TextField(
@@ -428,7 +513,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                       decoration: _inputDecoration(context),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
+
+                    // Avatar Tone Chips
+                    _FieldLabel('Avatar Tone'),
+                    const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -483,8 +572,303 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         );
                       }).toList(),
                     ),
-                    if (isParent) ...[
-                      const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+
+                    // Save Profile Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: _saving ? null : () => _save(t),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF6C63FF),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: _saving
+                            ? const SproutLoadingIndicator(
+                                size: SproutLoadingSize.mini,
+                                color: Colors.white,
+                              )
+                            : Text(
+                                t.t('profile.save'),
+                                style: const TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ==========================================
+              // GROUP 2: PREFERENCES (Parents & Children)
+              // ==========================================
+              SectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SectionHeader(
+                      icon: Icons.tune_rounded,
+                      title: t.t('profile.sectionPreferences'),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Theme Control Row
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: isDark ? 0.25 : 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                              size: 20,
+                              color: const Color(0xFFF59E0B),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t.t('profile.themeLabel'),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isDark ? t.t('profile.themeDark') : t.t('profile.themeLight'),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            width: 108,
+                            child: SegmentedButton<ThemeMode>(
+                              segments: [
+                                ButtonSegment<ThemeMode>(
+                                  value: ThemeMode.light,
+                                  icon: const Icon(Icons.wb_sunny_rounded, size: 16),
+                                  tooltip: t.t('profile.themeLight'),
+                                ),
+                                ButtonSegment<ThemeMode>(
+                                  value: ThemeMode.dark,
+                                  icon: const Icon(Icons.nightlight_round, size: 16),
+                                  tooltip: t.t('profile.themeDark'),
+                                ),
+                              ],
+                              selected: {currentTheme},
+                              onSelectionChanged: (selected) {
+                                if (selected.isNotEmpty) {
+                                  ref.read(themeModeProvider.notifier).setThemeMode(selected.first);
+                                }
+                              },
+                              showSelectedIcon: false,
+                              style: SegmentedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Language Control Row
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF6C63FF).withValues(alpha: isDark ? 0.25 : 0.12),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.language_rounded,
+                              size: 20,
+                              color: Color(0xFF6C63FF),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  t.t('profile.languageLabel'),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  currentLang == SupportedLanguage.mm ? 'မြန်မာ (Myanmar)' : 'English',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(
+                            width: 108,
+                            child: SegmentedButton<SupportedLanguage>(
+                              segments: const [
+                                ButtonSegment<SupportedLanguage>(
+                                  value: SupportedLanguage.en,
+                                  label: Text('EN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                ),
+                                ButtonSegment<SupportedLanguage>(
+                                  value: SupportedLanguage.mm,
+                                  label: Text('MM', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                                ),
+                              ],
+                              selected: {currentLang},
+                              onSelectionChanged: (selected) {
+                                if (selected.isNotEmpty) {
+                                  ref.read(i18nProvider.notifier).setLanguage(selected.first);
+                                }
+                              },
+                              showSelectedIcon: false,
+                              style: SegmentedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ==========================================
+              // GROUP 3: SECURITY
+              // ==========================================
+              SectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SectionHeader(
+                      icon: Icons.shield_outlined,
+                      title: t.t('profile.sectionSecurity'),
+                    ),
+                    const SizedBox(height: 14),
+                    InkWell(
+                      onTap: () => context.push('/profile/change-password'),
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF8B5CF6).withValues(alpha: isDark ? 0.25 : 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.lock_outline_rounded,
+                                size: 20,
+                                color: Color(0xFF8B5CF6),
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    t.t('profile.changePassword'),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 14,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    t.t('profile.changePasswordSubtitle'),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // ==========================================
+              // GROUP 4: FAMILY SETTINGS (Parent-Only)
+              // ==========================================
+              if (isParent) ...[
+                SectionCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SectionHeader(
+                        icon: Icons.family_restroom_rounded,
+                        title: t.t('profile.sectionFamily'),
+                      ),
+                      const SizedBox(height: 14),
+
                       _FieldLabel(t.t('profile.familyTimezoneLabel')),
                       const SizedBox(height: 8),
 
@@ -651,51 +1035,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                     ],
-                    const SizedBox(height: 12),
-                    _FieldLabel(t.t('profile.currentPasswordLabel')),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: _currentPassword,
-                      obscureText: true,
-                      style: TextStyle(
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        fontWeight: FontWeight.w600,
-                      ),
-                      decoration: _inputDecoration(
-                        context,
-                        hint: t.t('profile.currentPasswordPlaceholder'),
-                      ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // ==========================================
+              // GROUP 5: ACCOUNT
+              // ==========================================
+              SectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SectionHeader(
+                      icon: Icons.manage_accounts_outlined,
+                      title: t.t('profile.sectionAccount'),
                     ),
-                    const SizedBox(height: 12),
-                    _FieldLabel(t.t('profile.newPasswordLabel')),
-                    const SizedBox(height: 6),
-                    TextField(
-                      controller: _newPassword,
-                      obscureText: true,
-                      style: TextStyle(
-                        color: isDark ? Colors.white : const Color(0xFF0F172A),
-                        fontWeight: FontWeight.w600,
-                      ),
-                      decoration: _inputDecoration(context),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: _saving ? null : () => _save(t),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFF6C63FF),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: Text(
-                          _saving ? t.t('profile.saving') : t.t('profile.save'),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
+
+                    // App Tour
                     SizedBox(
                       width: double.infinity,
                       child: OutlinedButton.icon(
@@ -714,33 +1072,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(14),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Divider(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE5E7EB),
-                      height: 1,
-                    ),
-                    const SizedBox(height: 12),
+
+                    // Logout
                     SizedBox(
                       width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: _logout,
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFFFECACA)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: Text(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _confirmLogout(t),
+                        icon: const Icon(Icons.logout_rounded, size: 18, color: Color(0xFFDC2626)),
+                        label: Text(
                           t.t('profile.logout'),
                           style: const TextStyle(
                             color: Color(0xFFDC2626),
                             fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFFFECACA)),
+                          backgroundColor: isDark
+                              ? const Color(0xFF7F1D1D).withValues(alpha: 0.15)
+                              : const Color(0xFFFEF2F2),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
                           ),
                         ),
                       ),
@@ -749,6 +1108,41 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
             ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.icon,
+    required this.title,
+  });
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 19,
+          color: const Color(0xFF6C63FF),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white : const Color(0xFF1E293B),
+            letterSpacing: -0.2,
           ),
         ),
       ],
@@ -765,7 +1159,7 @@ InputDecoration _inputDecoration(BuildContext context, {String? hint}) {
     ),
     filled: true,
     fillColor: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
       borderSide: BorderSide(
@@ -777,6 +1171,10 @@ InputDecoration _inputDecoration(BuildContext context, {String? hint}) {
       borderSide: BorderSide(
         color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
       ),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 1.5),
     ),
   );
 }
@@ -794,6 +1192,7 @@ class _FieldLabel extends StatelessWidget {
       style: TextStyle(
         color: isDark ? const Color(0xFFF4F4F4) : const Color(0xFF475569),
         fontWeight: FontWeight.w600,
+        fontSize: 13,
       ),
     );
   }

@@ -17,6 +17,7 @@ import '../features/points/points_history_screen.dart';
 import '../features/points/points_screen.dart';
 import '../features/privileges/privileges_history_screen.dart';
 import '../features/privileges/privileges_screen.dart';
+import '../features/profile/change_password_screen.dart';
 import '../features/profile/profile_screen.dart';
 import '../features/tasks/routine_detail_screen.dart';
 import '../features/tasks/task_detail_screen.dart';
@@ -170,6 +171,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/family/nudges/:childId',
         builder: (context, state) =>
             NudgeEditScreen(childId: state.pathParameters['childId']!),
+      ),
+      GoRoute(
+        path: '/profile/change-password',
+        builder: (context, state) => const ChangePasswordScreen(),
       ),
     ],
   );

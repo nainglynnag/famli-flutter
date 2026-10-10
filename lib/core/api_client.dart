@@ -100,6 +100,8 @@ class ApiClient {
     String? currentPassword,
     String? newPassword,
     String? familyTimezone,
+    String? themeMode,
+    String? language,
   }) => _request(
     '/auth/me',
     method: 'PATCH',
@@ -111,6 +113,8 @@ class ApiClient {
       'currentPassword': ?currentPassword,
       'newPassword': ?newPassword,
       'familyTimezone': ?familyTimezone,
+      'themeMode': ?themeMode,
+      'language': ?language,
     },
     parse: (data) => UserSummary.fromJson(_asMap(data)),
   );

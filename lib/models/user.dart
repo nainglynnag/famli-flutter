@@ -32,6 +32,23 @@ UserRole userRoleFromJson(String value) =>
 String userRoleToJson(UserRole role) =>
     role == UserRole.parent ? 'PARENT' : 'CHILD';
 
+class UserPreferences {
+  const UserPreferences({this.themeMode, this.language});
+
+  final String? themeMode;
+  final String? language;
+
+  factory UserPreferences.fromJson(Map<String, dynamic> json) => UserPreferences(
+    themeMode: json['themeMode'] as String?,
+    language: json['language'] as String?,
+  );
+
+  Map<String, dynamic> toJson() => {
+    if (themeMode != null) 'themeMode': themeMode,
+    if (language != null) 'language': language,
+  };
+}
+
 class UserSummary {
   UserSummary({
     required this.id,
@@ -44,6 +61,7 @@ class UserSummary {
     this.familyId,
     this.family,
     this.progress,
+    this.preferences,
   });
 
   final String id;
@@ -56,23 +74,37 @@ class UserSummary {
   final String? familyId;
   final UserFamily? family;
   final UserProgress? progress;
+  final UserPreferences? preferences;
 
-  factory UserSummary.fromJson(Map<String, dynamic> json) => UserSummary(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    username: json['username'] as String,
-    role: userRoleFromJson(json['role'] as String),
-    email: json['email'] as String?,
-    avatarTone: json['avatarTone'] as String?,
-    photoUrl: json['photoUrl'] as String?,
-    familyId: json['familyId'] as String?,
-    family: json['family'] != null
-        ? UserFamily.fromJson(json['family'] as Map<String, dynamic>)
-        : null,
-    progress: json['progress'] != null
-        ? UserProgress.fromJson(json['progress'] as Map<String, dynamic>)
-        : null,
-  );
+  factory UserSummary.fromJson(Map<String, dynamic> json) {
+    final prefsJson = json['preferences'] as Map<String, dynamic>?;
+    final preferences = prefsJson != null
+        ? UserPreferences.fromJson(prefsJson)
+        : (json['themeMode'] != null || json['language'] != null)
+            ? UserPreferences(
+                themeMode: json['themeMode'] as String?,
+                language: json['language'] as String?,
+              )
+            : null;
+
+    return UserSummary(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      username: json['username'] as String,
+      role: userRoleFromJson(json['role'] as String),
+      email: json['email'] as String?,
+      avatarTone: json['avatarTone'] as String?,
+      photoUrl: json['photoUrl'] as String?,
+      familyId: json['familyId'] as String?,
+      family: json['family'] != null
+          ? UserFamily.fromJson(json['family'] as Map<String, dynamic>)
+          : null,
+      progress: json['progress'] != null
+          ? UserProgress.fromJson(json['progress'] as Map<String, dynamic>)
+          : null,
+      preferences: preferences,
+    );
+  }
 }
 
 class LoginResponse {
