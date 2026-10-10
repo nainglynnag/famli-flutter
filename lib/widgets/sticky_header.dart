@@ -17,6 +17,7 @@ class StickyTopBar extends ConsumerWidget {
     this.onBack,
     this.showNotificationBell = true,
     this.trailing,
+    this.enableBlur = true,
   });
 
   final String title;
@@ -25,6 +26,7 @@ class StickyTopBar extends ConsumerWidget {
   final VoidCallback? onBack;
   final bool showNotificationBell;
   final Widget? trailing;
+  final bool enableBlur;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -36,28 +38,25 @@ class StickyTopBar extends ConsumerWidget {
         .where((n) => !centerState.readIds.contains(n.id))
         .length;
 
-    return Container(
+    final content = Container(
       decoration: BoxDecoration(
         color: isDark
-            ? const Color(0xFF1E1B4B).withValues(alpha: 0.85)
-            : Colors.white.withValues(alpha: 0.85),
+            ? const Color(0xFF1E1B4B).withValues(alpha: 0.75)
+            : Colors.white.withValues(alpha: 0.75),
         border: Border(
           bottom: BorderSide(
             color: isDark
-                ? const Color(0xFF374151).withValues(alpha: 0.5)
-                : const Color(0xFFE2E8F0),
+                ? const Color(0xFF475569).withValues(alpha: 0.35)
+                : const Color(0xFFE2E8F0).withValues(alpha: 0.8),
             width: 1,
           ),
         ),
       ),
-      child: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              child: Row(
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          child: Row(
                 children: [
                   if (showBackButton) ...[
                     OutlinedButton(
@@ -119,6 +118,7 @@ class StickyTopBar extends ConsumerWidget {
                             subtitle!,
                             style: TextStyle(
                               fontSize: 13,
+                              fontWeight: FontWeight.w500,
                               color: isDark
                                   ? const Color(0xFF9CA3AF)
                                   : const Color(0xFF6B7280),
@@ -145,8 +145,15 @@ class StickyTopBar extends ConsumerWidget {
               ),
             ),
           ),
-        ),
-      ),
+        );
+
+    return ClipRect(
+      child: enableBlur
+          ? BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+              child: content,
+            )
+          : content,
     );
   }
 
