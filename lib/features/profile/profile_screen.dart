@@ -284,9 +284,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     color: Colors.black.withValues(alpha: 0.4),
                                   ),
                                   child: const Center(
-                                    child: CircularProgressIndicator(
+                                    child: SproutLoadingIndicator(
                                       color: Colors.white,
-                                      strokeWidth: 3,
+                                      size: 36,
                                     ),
                                   ),
                                 ),

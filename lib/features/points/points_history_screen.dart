@@ -131,10 +131,10 @@ class _PointsHistoryScreenState extends ConsumerState<PointsHistoryScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 40),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF6366F1),
-                      ),
+                    child: SproutLoadingView(
+                      message: 'Loading seeds history...',
+                      subtitle: 'Fetching earned & spent seeds 🌱',
+                      size: SproutLoadingSize.medium,
                     ),
                   );
                 }

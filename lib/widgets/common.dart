@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+export 'sprout_loading.dart';
+
 /// Shared bits reused across the app/(app) screens: the tone-colored avatar
 /// dot, the pending/completed status pill, and the rounded card container.
 const Map<String, Color> toneColors = {

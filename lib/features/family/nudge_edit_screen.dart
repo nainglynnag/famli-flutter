@@ -223,7 +223,10 @@ class _NudgeEditScreenState extends ConsumerState<NudgeEditScreen> {
             if (nudgesAsync.isLoading && sorted.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator()),
+                child: SproutLoadingView(
+                  message: 'Loading reminder settings...',
+                  size: SproutLoadingSize.medium,
+                ),
               )
             else
               ...sorted.map((entry) {

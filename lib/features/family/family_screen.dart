@@ -41,7 +41,10 @@ class FamilyScreen extends ConsumerWidget {
             if (overviewAsync.isLoading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: CircularProgressIndicator()),
+                child: SproutLoadingView(
+                  message: 'Loading family members & progress...',
+                  size: SproutLoadingSize.medium,
+                ),
               )
             else if (overviewAsync.hasError)
               Padding(

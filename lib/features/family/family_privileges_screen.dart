@@ -203,7 +203,15 @@ class _FamilyPrivilegesScreenState
                   LightText(t.t('privileges.privilegeIdeasHint')),
                   const SizedBox(height: 8),
                   if (privileges.isEmpty)
-                    LightText(t.t('privileges.noPrivileges'))
+                    ref.watch(privilegesProvider).isLoading
+                        ? const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: SproutLoadingView(
+                              message: 'Loading privilege ideas...',
+                              size: SproutLoadingSize.small,
+                            ),
+                          )
+                        : LightText(t.t('privileges.noPrivileges'))
                   else
                     ...privileges.map(
                       (privilege) => Container(

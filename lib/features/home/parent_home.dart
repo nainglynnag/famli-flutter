@@ -237,11 +237,10 @@ class _ParentHomeState extends ConsumerState<ParentHome> {
                       ),
                       const SizedBox(height: 16),
                       if (tasksAsync.isLoading)
-                        const ClipRRect(
-                          borderRadius: BorderRadius.all(Radius.circular(999)),
-                          child: LinearProgressIndicator(
-                            color: AppColors.brandPrimary,
-                            backgroundColor: Color(0xFFE2E8F0),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Center(
+                            child: SproutLoadingIndicator(size: 28),
                           ),
                         )
                       else if (totalApplicable == 0)
@@ -411,6 +410,14 @@ class _ParentHomeState extends ConsumerState<ParentHome> {
                                   ),
                                 ),
                               ],
+                            ),
+                          )
+                        else if (tasksAsync.isLoading)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: SproutLoadingView(
+                              message: 'Loading tasks...',
+                              size: SproutLoadingSize.small,
                             ),
                           )
                         else

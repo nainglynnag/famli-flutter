@@ -25,6 +25,7 @@ import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/frosted_nav_bar.dart';
+import '../widgets/sprout_loading.dart';
 
 /// Monitors auth and onboarding state and triggers router redirects when session changes.
 class _AuthRefreshListenable extends ChangeNotifier {
@@ -242,18 +243,10 @@ class _SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: Color(0xFF5C6AC4)),
-            SizedBox(height: 12),
-            Text(
-              'Preparing Famli...',
-              style: TextStyle(color: Color(0xFF6B7280)),
-            ),
-          ],
-        ),
+      body: SproutLoadingView(
+        size: SproutLoadingSize.large,
+        message: 'Preparing Famli...',
+        subtitle: 'Growing your family space 🌱',
       ),
     );
   }

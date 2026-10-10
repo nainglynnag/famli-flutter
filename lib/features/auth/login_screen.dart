@@ -6,6 +6,7 @@ import '../../core/api_exception.dart';
 import '../../l10n/translations.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/i18n_provider.dart';
+import '../../widgets/sprout_loading.dart';
 import 'widgets/language_toggle.dart';
 
 /// Mirrors mobile/app/(auth)/login.tsx.
@@ -163,10 +164,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 borderRadius: BorderRadius.circular(16),
                               ),
                             ),
-                            child: Text(
-                              _submitting
-                                  ? t.t('auth.login.signingIn')
-                                  : t.t('auth.login.signIn'),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_submitting) ...[
+                                  const SproutLoadingIndicator(
+                                    size: SproutLoadingSize.mini,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                Text(
+                                  _submitting
+                                      ? t.t('auth.login.signingIn')
+                                      : t.t('auth.login.signIn'),
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                              ],
                             ),
                           ),
                         ),

@@ -267,7 +267,10 @@ class _NudgesScreenState extends ConsumerState<NudgesScreen> {
           ),
           Expanded(
             child: nudgesAsync.isLoading && data.isEmpty
-                ? const Center(child: CircularProgressIndicator())
+                ? const SproutLoadingView(
+                    message: 'Loading nudges & reminders...',
+                    size: SproutLoadingSize.medium,
+                  )
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 48),
                     children: [
@@ -358,13 +361,9 @@ class _NudgesScreenState extends ConsumerState<NudgesScreen> {
                                     : () =>
                                         _applyGlobalToAll(allChildIds, t),
                                 icon: _savingChildId == 'global'
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
+                                    ? const SproutLoadingIndicator(
+                                        size: SproutLoadingSize.mini,
+                                        color: Colors.white,
                                       )
                                     : const Icon(Icons.sync_rounded, size: 18),
                                 label: Text(t.t('nudges.applyGlobal')),

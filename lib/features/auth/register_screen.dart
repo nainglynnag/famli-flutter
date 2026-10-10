@@ -7,6 +7,7 @@ import '../../l10n/translations.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/i18n_provider.dart';
+import '../../widgets/sprout_loading.dart';
 import 'widgets/language_toggle.dart';
 
 /// Mirrors mobile/app/(auth)/register.tsx.
@@ -208,10 +209,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 borderRadius: BorderRadius.circular(16),
                               ),
                             ),
-                            child: Text(
-                              _submitting
-                                  ? t.t('auth.register.creating')
-                                  : t.t('auth.register.create'),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (_submitting) ...[
+                                  const SproutLoadingIndicator(
+                                    size: SproutLoadingSize.mini,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 8),
+                                ],
+                                Text(
+                                  _submitting
+                                      ? t.t('auth.register.creating')
+                                      : t.t('auth.register.create'),
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                              ],
                             ),
                           ),
                         ),

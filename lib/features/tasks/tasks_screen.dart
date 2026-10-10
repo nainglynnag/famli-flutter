@@ -62,7 +62,16 @@ class _ChildTasksView extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
             children: [
-              if (tasks.isEmpty) LightText(t.t('tasks.myTasksEmpty')),
+              if (tasks.isEmpty)
+                tasksAsync.isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 32),
+                        child: SproutLoadingView(
+                          message: 'Loading tasks & routines...',
+                          size: SproutLoadingSize.medium,
+                        ),
+                      )
+                    : LightText(t.t('tasks.myTasksEmpty')),
               ...tasks.map((task) {
                 final completed = task.status == 'COMPLETED';
                 return Container(
@@ -527,7 +536,15 @@ class _ParentTasksViewState extends ConsumerState<_ParentTasksView> {
             title: t.t('tasks.todaysTasks'),
             children: [
               if (manualTasks.isEmpty)
-                LightText(t.t('tasks.noStandaloneTasks')),
+                tasksAsync.isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: SproutLoadingView(
+                          message: 'Loading tasks...',
+                          size: SproutLoadingSize.small,
+                        ),
+                      )
+                    : LightText(t.t('tasks.noStandaloneTasks')),
               ...manualTasks.map((task) => _ParentTaskCard(task: task, t: t)),
               TextButton(
                 onPressed: () => context.go('/history'),
@@ -549,7 +566,16 @@ class _ParentTasksViewState extends ConsumerState<_ParentTasksView> {
           _Section(
             title: t.t('tasks.routineTemplates'),
             children: [
-              if (templates.isEmpty) LightText(t.t('tasks.noTemplates')),
+              if (templates.isEmpty)
+                templatesAsync.isLoading
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: SproutLoadingView(
+                          message: 'Loading routine templates...',
+                          size: SproutLoadingSize.small,
+                        ),
+                      )
+                    : LightText(t.t('tasks.noTemplates')),
               ...templates.map(
                 (template) => _TemplateCard(
                   template: template,
@@ -912,9 +938,22 @@ class _PrimaryButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
         ),
-        child: Text(
-          loading ? loadingLabel : label,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (loading) ...[
+              const SproutLoadingIndicator(
+                size: SproutLoadingSize.mini,
+                color: Colors.white,
+              ),
+              const SizedBox(width: 8),
+            ],
+            Text(
+              loading ? loadingLabel : label,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ],
         ),
       ),
     );

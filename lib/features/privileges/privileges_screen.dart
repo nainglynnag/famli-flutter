@@ -966,13 +966,9 @@ class _RequestTicketSheetState extends State<_RequestTicketSheet> {
                     ),
                   ),
                   icon: _submitting
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
+                      ? const SproutLoadingIndicator(
+                          size: SproutLoadingSize.mini,
+                          color: Colors.white,
                         )
                       : const Icon(Icons.send_rounded, size: 18),
                   label: Text(

@@ -560,6 +560,13 @@ class _ChildHomeState extends ConsumerState<ChildHome> {
                   ),
                 ),
               ],
+              if (tasksAsync.isLoading && tasks.isEmpty) ...[
+                const SizedBox(height: 18),
+                const SproutLoadingView(
+                  message: 'Loading today\'s tasks & routines...',
+                  size: SproutLoadingSize.medium,
+                ),
+              ],
               if (manualTasks.isNotEmpty) ...[
                 const SizedBox(height: 18),
                 SectionCard(

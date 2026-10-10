@@ -88,8 +88,9 @@ class TaskDetailScreen extends ConsumerWidget {
       backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8F5FF),
       body: SafeArea(
         child: detailAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(color: Color(0xFF6C63FF)),
+          loading: () => const SproutLoadingView(
+            message: 'Loading task details...',
+            subtitle: 'Fetching assignments and rewards 🌱',
           ),
           error: (error, stack) => Center(
             child: Text(

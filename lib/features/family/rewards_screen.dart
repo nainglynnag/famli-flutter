@@ -137,6 +137,14 @@ class _RewardsScreenState extends ConsumerState<RewardsScreen> {
                   ],
                 ),
               )
+            else if (settingsAsync.isLoading && !_hydrated)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: SproutLoadingView(
+                  message: 'Loading streak rewards...',
+                  size: SproutLoadingSize.medium,
+                ),
+              )
             else
               SectionCard(
                 child: Column(

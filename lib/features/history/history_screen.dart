@@ -129,10 +129,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Padding(
                     padding: EdgeInsets.symmetric(vertical: 40),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFF6C63FF),
-                      ),
+                    child: SproutLoadingView(
+                      message: 'Loading task history...',
+                      subtitle: 'Fetching completed assignments 🌱',
+                      size: SproutLoadingSize.medium,
                     ),
                   );
                 }
