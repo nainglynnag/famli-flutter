@@ -543,19 +543,42 @@ class _FamilyPrivilegesScreenState
                     controller: _description,
                   ),
                   const SizedBox(height: 12),
-                  FilledButton(
-                    onPressed: _creating ? null : () => _createPrivilege(t),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF6C63FF),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _creating ? null : () => _createPrivilege(t),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF6C63FF),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 24,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      _creating
-                          ? t.t('privileges.addingPrivilege')
-                          : t.t('privileges.addPrivilegeButton'),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_creating) ...[
+                            const SproutLoadingIndicator(
+                              size: SproutLoadingSize.mini,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+                          Text(
+                            _creating
+                                ? t.t('privileges.addingPrivilege')
+                                : t.t('privileges.addPrivilegeButton'),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],

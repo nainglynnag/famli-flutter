@@ -371,7 +371,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     TextField(
                       controller: _name,
                       style: TextStyle(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFF0F172A),
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                         fontWeight: FontWeight.w600,
                       ),
                       decoration: _inputDecoration(context),
@@ -440,7 +440,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         focusNode: _timezoneFocus,
                         autocorrect: false,
                         style: TextStyle(
-                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFF0F172A),
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                           fontWeight: FontWeight.w600,
                         ),
                         onTap: () =>
@@ -494,7 +494,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       controller: _currentPassword,
                       obscureText: true,
                       style: TextStyle(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFF0F172A),
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                         fontWeight: FontWeight.w600,
                       ),
                       decoration: _inputDecoration(
@@ -509,7 +509,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       controller: _newPassword,
                       obscureText: true,
                       style: TextStyle(
-                        color: isDark ? const Color(0xFF1E293B) : const Color(0xFF0F172A),
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                         fontWeight: FontWeight.w600,
                       ),
                       decoration: _inputDecoration(context),
