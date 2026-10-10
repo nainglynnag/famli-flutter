@@ -8,6 +8,7 @@ import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/i18n_provider.dart';
+import '../../theme/app_colors.dart';
 import '../../widgets/common.dart';
 import '../../widgets/sticky_header.dart';
 import '../../widgets/user_avatar.dart';
@@ -75,41 +76,59 @@ class FamilyScreen extends ConsumerWidget {
               ...members.map(
                 (member) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
-                  child: _MemberCard(member: member, t: t),
+                  child: MemberCard(member: member, t: t),
                 ),
               ),
             const SizedBox(height: 8),
-            FilledButton(
-              onPressed: () => context.push('/family/manage/parents'),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF6C63FF),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              child: Text(t.t('family.manageAccounts')),
+            ManageAccountsHeroCard(
+              title: t.t('family.manageAccounts'),
+              subtitle: 'Family members, invites & parental roles',
+              onTap: () => context.push('/family/manage/parents'),
             ),
             if (isParent) ...[
-              const SizedBox(height: 10),
-              _GhostButton(
-                label: t.t('family.streakRewards'),
-                onPressed: () => context.push('/family/rewards'),
-              ),
-              const SizedBox(height: 10),
-              _GhostButton(
-                label: t.t('family.managePrivileges'),
-                onPressed: () => context.push('/family/privileges'),
-              ),
-              const SizedBox(height: 10),
-              _GhostButton(
-                label: t.t('family.nudgesReminders'),
-                onPressed: () => context.push('/family/nudges'),
-              ),
-              const SizedBox(height: 10),
-              _GhostButton(
-                label: t.t('family.giftsPenalties'),
-                onPressed: () => context.go('/points'),
+              const SizedBox(height: 12),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final crossAxisCount = constraints.maxWidth < 320 ? 1 : 2;
+                  return GridView.count(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childAspectRatio: crossAxisCount == 1 ? 3.2 : 1.35,
+                    children: [
+                      FeatureCard(
+                        title: t.t('family.streakRewards'),
+                        subtitle: 'Milestones & bonuses',
+                        icon: Icons.local_fire_department_rounded,
+                        accentColor: AppColors.streakAmber,
+                        onTap: () => context.push('/family/rewards'),
+                      ),
+                      FeatureCard(
+                        title: t.t('family.managePrivileges'),
+                        subtitle: 'Catalog & requests',
+                        icon: Icons.confirmation_number_rounded,
+                        accentColor: AppColors.privilegeViolet,
+                        onTap: () => context.push('/family/privileges'),
+                      ),
+                      FeatureCard(
+                        title: t.t('family.nudgesReminders'),
+                        subtitle: 'Gentle alerts & schedules',
+                        icon: Icons.notifications_active_rounded,
+                        accentColor: AppColors.nudgeSky,
+                        onTap: () => context.push('/family/nudges'),
+                      ),
+                      FeatureCard(
+                        title: t.t('family.giftsPenalties'),
+                        subtitle: 'Add or deduct seeds',
+                        icon: Icons.stars_rounded,
+                        accentColor: AppColors.seedGold,
+                        onTap: () => context.go('/points'),
+                      ),
+                    ],
+                  );
+                },
               ),
             ],
           ],
@@ -121,52 +140,243 @@ class FamilyScreen extends ConsumerWidget {
 }
 }
 
-class _GhostButton extends StatelessWidget {
-  const _GhostButton({required this.label, required this.onPressed});
+class ManageAccountsHeroCard extends StatelessWidget {
+  const ManageAccountsHeroCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
-  final String label;
-  final VoidCallback onPressed;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return OutlinedButton(
-      onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        side: BorderSide(
-          color: isDark ? const Color(0xFF475569) : const Color(0xFFD1D5DB),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        minimumSize: const Size.fromHeight(0),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4B5563),
-          fontWeight: FontWeight.w600,
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.brandPrimary.withValues(alpha: isDark ? 0.22 : 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.group_rounded,
+                  color: AppColors.brandPrimary,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : const Color(0xFF1E293B),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark
+                            ? const Color(0xFF94A3B8)
+                            : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 15,
+                color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-String _humanizeStatLabel(String label) {
-  final spaced = label
-      .replaceAllMapped(
-        RegExp(r'([a-z0-9])([A-Z])'),
-        (m) => '${m[1]} ${m[2]}',
-      )
-      .replaceAll('_', ' ')
-      .toLowerCase();
-  if (spaced.isEmpty) return spaced;
-  return spaced[0].toUpperCase() + spaced.substring(1);
+class FeatureCard extends StatelessWidget {
+  const FeatureCard({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E293B) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
+                blurRadius: 14,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: isDark ? 0.22 : 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: accentColor, size: 20),
+              ),
+              const SizedBox(height: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white : const Color(0xFF1E293B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _MemberCard extends StatelessWidget {
-  const _MemberCard({required this.member, required this.t});
+class ParentStatBadge extends StatelessWidget {
+  const ParentStatBadge({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.isDark,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon,
+              size: 16,
+              color: isDark ? const Color(0xFFA5B4FC) : AppColors.brandPrimary),
+          const SizedBox(width: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              color: isDark ? Colors.white : const Color(0xFF1E293B),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: isDark
+                  ? const Color(0xFF94A3B8)
+                  : const Color(0xFF64748B),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MemberCard extends StatelessWidget {
+  const MemberCard({super.key, required this.member, required this.t});
 
   final FamilyOverviewEntry member;
   final Map<String, dynamic> t;
@@ -175,7 +385,6 @@ class _MemberCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isChild = member.role == UserRole.child;
-    final stats = member.stats.entries.toList();
 
     return SectionCard(
       child: Column(
@@ -201,7 +410,7 @@ class _MemberCard extends StatelessWidget {
                       member.name,
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: isDark ? Colors.white : const Color(0xFF1F2937),
                       ),
                     ),
@@ -209,7 +418,7 @@ class _MemberCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
-                        vertical: 4,
+                        vertical: 3,
                       ),
                       decoration: BoxDecoration(
                         color: isDark
@@ -233,7 +442,7 @@ class _MemberCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
-                  vertical: 6,
+                  vertical: 5,
                 ),
                 decoration: BoxDecoration(
                   color: isDark
@@ -259,8 +468,9 @@ class _MemberCard extends StatelessWidget {
                       ? t.t('family.roleChild').toUpperCase()
                       : t.t('family.roleParent').toUpperCase(),
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    letterSpacing: 0.5,
                     color: isDark
                         ? (isChild
                             ? const Color(0xFF38BDF8)
@@ -273,58 +483,201 @@ class _MemberCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          if (stats.isEmpty)
+          const SizedBox(height: 14),
+          if (member.stats.isEmpty)
             LightText(t.t('family.noStats'))
-          else
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: stats
-                  .map(
-                    (entry) => Container(
-                      constraints: const BoxConstraints(minWidth: 110),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 8,
+          else if (isChild) ...[
+            // Child Badges: Seeds Balance & Streak
+            Row(
+              children: [
+                // Seeds Badge
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.seedGold
+                        .withValues(alpha: isDark ? 0.20 : 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.seedGold
+                          .withValues(alpha: isDark ? 0.45 : 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('🌱', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${(member.stats['seedBalance'] ?? 0).toInt()} Seeds',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? const Color(0xFFFDE047)
+                              : const Color(0xFFB45309),
+                        ),
                       ),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? const Color(0xFF0F172A)
-                            : const Color(0xFFF3F4FF),
-                        borderRadius: BorderRadius.circular(12),
-                        border: isDark
-                            ? Border.all(color: const Color(0xFF334155))
-                            : null,
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Streak Badge
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: AppColors.streakAmber
+                        .withValues(alpha: isDark ? 0.20 : 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.streakAmber
+                          .withValues(alpha: isDark ? 0.45 : 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('🔥', style: TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${(member.stats['streak'] ?? 0).toInt()} ${(member.stats['streak'] ?? 0).toInt() == 1 ? "day" : "days"}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isDark
+                              ? const Color(0xFFFDBA74)
+                              : const Color(0xFFC2410C),
+                        ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Combined Tasks Progress Card (e.g. 7/15 Tasks Completed Today)
+            Builder(
+              builder: (context) {
+                final completed =
+                    (member.stats['completedToday'] ?? 0).toInt();
+                final total = (member.stats['assignments'] ?? 0).toInt();
+                final isFinished = completed >= total && total > 0;
+                final progress =
+                    total > 0 ? (completed / total).clamp(0.0, 1.0) : 0.0;
+
+                return Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '${entry.value}',
+                            total > 0
+                                ? '$completed / $total Tasks Completed'
+                                : 'No tasks assigned today',
                             style: TextStyle(
+                              fontSize: 13,
                               fontWeight: FontWeight.w700,
                               color: isDark
                                   ? Colors.white
-                                  : const Color(0xFF1F2937),
+                                  : const Color(0xFF1E293B),
                             ),
                           ),
-                          Text(
-                            _humanizeStatLabel(entry.key),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: isDark
-                                  ? const Color(0xFF94A3B8)
-                                  : const Color(0xFF6B7280),
-                            ),
-                          ),
+                          if (total > 0)
+                            if (isFinished)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: AppColors.progressEmerald
+                                      .withValues(alpha: isDark ? 0.25 : 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  '100% Done 🎉',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: isDark
+                                        ? const Color(0xFF6EE7B7)
+                                        : AppColors.progressEmeraldDark,
+                                  ),
+                                ),
+                              )
+                            else
+                              Text(
+                                '${((completed / total) * 100).round()}%',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? const Color(0xFFA5B4FC)
+                                      : AppColors.brandPrimary,
+                                ),
+                              ),
                         ],
                       ),
-                    ),
-                  )
-                  .toList(),
+                      if (total > 0) ...[
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            minHeight: 6,
+                            backgroundColor: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              isFinished
+                                  ? AppColors.progressEmerald
+                                  : AppColors.brandPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
             ),
+          ] else ...[
+            // Parent Stats
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                ParentStatBadge(
+                  label: 'Tasks Created',
+                  value: '${(member.stats['tasksCreated'] ?? 0).toInt()}',
+                  icon: Icons.task_alt_rounded,
+                  isDark: isDark,
+                ),
+                ParentStatBadge(
+                  label: 'Kids Assigned',
+                  value: '${(member.stats['kidsAssigned'] ?? 0).toInt()}',
+                  icon: Icons.family_restroom_rounded,
+                  isDark: isDark,
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

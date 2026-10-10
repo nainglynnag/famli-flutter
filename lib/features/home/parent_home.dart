@@ -10,6 +10,7 @@ import '../../providers/api_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/data_providers.dart';
 import '../../providers/i18n_provider.dart';
+import '../../theme/app_colors.dart';
 import '../../widgets/common.dart';
 import '../../widgets/sticky_header.dart';
 import '../../widgets/user_avatar.dart';
@@ -114,6 +115,9 @@ class _ParentHomeState extends ConsumerState<ParentHome> {
     final hasPrivilegeData = privilegeRequests.isNotEmpty;
     final todayPointEntries = pointsAsync.value ?? [];
 
+    final totalApplicable = pendingAssignments.length + completedAssignments.length;
+    final completedApplicable = completedAssignments.length;
+
     return Column(
       children: [
         StickyTopBar(
@@ -125,68 +129,301 @@ class _ParentHomeState extends ConsumerState<ParentHome> {
         Expanded(
           child: RefreshIndicator(
             onRefresh: handleRefresh,
-            color: const Color(0xFF6C63FF),
+            color: AppColors.brandPrimary,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 120),
               children: [
+                // Family Day Pulse Hero Card
                 SectionCard(
                   child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(t.t('home.familyLabel'), style: _labelStyle),
-                Text(
-                  widget.profile.family?.name ?? t.t('home.notLinked'),
-                  style: _valueStyle(isDark),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          SectionCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SectionCardHeader(
-                  title: t.t('home.assignmentsTitle'),
-                  trailing: StatusPill(label: t.t('home.pendingLabel')),
-                ),
-                if (children.length > 1) ...[
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ChoiceChip(
-                        label: const Text('All'),
-                        selected: _selectedChildId == null,
-                        onSelected: (_) => setState(() => _selectedChildId = null),
-                      ),
-                      ...children.map(
-                        (c) => ChoiceChip(
-                          avatar: UserAvatarCircle(
-                            name: c.name,
-                            photoUrl: c.photoUrl,
-                            avatarTone: c.avatarTone,
-                            size: 18,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        _selectedChildId == null
+                                            ? (widget.profile.family?.name ??
+                                                t.t('home.familyLabel'))
+                                            : (children
+                                                    .where((c) =>
+                                                        c.id == _selectedChildId)
+                                                    .firstOrNull
+                                                    ?.name ??
+                                                'Child'),
+                                        style: _valueStyle(isDark),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.brandPrimary.withValues(
+                                            alpha: isDark ? 0.25 : 0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'TODAY',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.8,
+                                          color: isDark
+                                              ? const Color(0xFFA5B4FC)
+                                              : AppColors.brandPrimary,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _selectedChildId == null
+                                      ? 'Household Daily Pulse'
+                                      : 'Individual Daily Pulse',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: isDark
+                                        ? AppColors.textSecondaryDark
+                                        : AppColors.textSecondaryLight,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          label: Text(c.name),
-                          selected: _selectedChildId == c.id,
-                          onSelected: (_) => setState(() => _selectedChildId = c.id),
-                        ),
+                          if (totalApplicable > 0)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: (completedApplicable == totalApplicable
+                                        ? AppColors.progressEmerald
+                                        : AppColors.brandPrimary)
+                                    .withValues(alpha: isDark ? 0.2 : 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: (completedApplicable == totalApplicable
+                                          ? AppColors.progressEmerald
+                                          : AppColors.brandPrimary)
+                                      .withValues(alpha: 0.3),
+                                ),
+                              ),
+                              child: Text(
+                                '${((completedApplicable / totalApplicable) * 100).round()}%',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 14,
+                                  color: completedApplicable == totalApplicable
+                                      ? (isDark
+                                          ? const Color(0xFF6EE7B7)
+                                          : AppColors.progressEmeraldDark)
+                                      : (isDark
+                                          ? const Color(0xFFA5B4FC)
+                                          : AppColors.brandPrimary),
+                                ),
+                              ),
+                            ),
+                        ],
                       ),
+                      const SizedBox(height: 16),
+                      if (tasksAsync.isLoading)
+                        const ClipRRect(
+                          borderRadius: BorderRadius.all(Radius.circular(999)),
+                          child: LinearProgressIndicator(
+                            color: AppColors.brandPrimary,
+                            backgroundColor: Color(0xFFE2E8F0),
+                          ),
+                        )
+                      else if (totalApplicable == 0)
+                        Row(
+                          children: [
+                            const Text('🌱', style: TextStyle(fontSize: 18)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'No tasks scheduled for today',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: isDark
+                                      ? AppColors.textSecondaryDark
+                                      : AppColors.textSecondaryLight,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      else ...[
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '$completedApplicable of $totalApplicable Tasks Done',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF1E293B),
+                              ),
+                            ),
+                            if (completedApplicable == totalApplicable)
+                              Row(
+                                children: [
+                                  const Icon(Icons.stars_rounded,
+                                      color: AppColors.progressEmerald, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '100%',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: isDark
+                                          ? const Color(0xFF6EE7B7)
+                                          : AppColors.progressEmeraldDark,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: (completedApplicable / totalApplicable)
+                                .clamp(0.0, 1.0),
+                            minHeight: 8,
+                            backgroundColor: isDark
+                                ? const Color(0xFF334155)
+                                : const Color(0xFFE2E8F0),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              completedApplicable == totalApplicable
+                                  ? AppColors.progressEmerald
+                                  : AppColors.brandPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          completedApplicable == totalApplicable
+                              ? 'All tasks complete! 🎉 Outstanding work today!'
+                              : (completedApplicable >= (totalApplicable / 2)
+                                  ? 'Great progress today! 💪 Over halfway done.'
+                                  : '${totalApplicable - completedApplicable} tasks remaining for today.'),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: completedApplicable == totalApplicable
+                                ? (isDark
+                                    ? const Color(0xFF6EE7B7)
+                                    : AppColors.progressEmeraldDark)
+                                : (isDark
+                                    ? AppColors.textSecondaryDark
+                                    : AppColors.textSecondaryLight),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 10),
-                ],
-                if (pendingAssignments.isEmpty)
-                  LightText(t.t('home.noPending'))
-                else
-                  ...pendingAssignments.map(
-                    (a) => _AssignmentTile(
-                      row: a,
-                      onTap: () => context.go('/tasks/${a.taskId}'),
-                      onCheckComplete: () => _completeForChild(a.taskId, a.childId),
-                    ),
-                  ),
+                ),
+                const SizedBox(height: 18),
+                SectionCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SectionCardHeader(
+                        title: t.t('home.assignmentsTitle'),
+                        trailing: StatusPill(label: t.t('home.pendingLabel')),
+                      ),
+                      if (children.length > 1) ...[
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            ChoiceChip(
+                              label: const Text('All'),
+                              selected: _selectedChildId == null,
+                              onSelected: (_) =>
+                                  setState(() => _selectedChildId = null),
+                            ),
+                            ...children.map(
+                              (c) => ChoiceChip(
+                                avatar: UserAvatarCircle(
+                                  name: c.name,
+                                  photoUrl: c.photoUrl,
+                                  avatarTone: c.avatarTone,
+                                  size: 18,
+                                ),
+                                label: Text(c.name),
+                                selected: _selectedChildId == c.id,
+                                onSelected: (_) =>
+                                    setState(() => _selectedChildId = c.id),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                      if (pendingAssignments.isEmpty)
+                        if (totalApplicable > 0)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 14, horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? const Color(0xFF064E3B)
+                                      .withValues(alpha: 0.3)
+                                  : const Color(0xFFF0FDF4),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isDark
+                                    ? const Color(0xFF047857)
+                                    : const Color(0xFFDCFCE7),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.check_circle_rounded,
+                                    color: AppColors.progressEmerald, size: 20),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'All caught up! No pending tasks right now ✨',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: isDark
+                                          ? const Color(0xFF6EE7B7)
+                                          : const Color(0xFF166534),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else
+                          LightText(t.t('home.noPending'))
+                      else
+                        ...pendingAssignments.map(
+                          (a) => _AssignmentTile(
+                            row: a,
+                            onTap: () => context.go('/tasks/${a.taskId}'),
+                            onCheckComplete: () =>
+                                _completeForChild(a.taskId, a.childId),
+                          ),
+                        ),
                 TextButton(
                   onPressed: () => context.go('/history'),
                   style: TextButton.styleFrom(
@@ -347,61 +584,6 @@ class _ParentHomeState extends ConsumerState<ParentHome> {
               ),
             ),
           ],
-          const SizedBox(height: 18),
-          FilledButton(
-            onPressed: () => context.go('/tasks'),
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF6C63FF),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-            ),
-            child: Text(
-              t.t('home.actions.tasks'),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: () => context.go('/family'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              side: BorderSide(
-                color: isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-            ),
-            child: Text(
-              t.t('home.actions.family'),
-              style: TextStyle(
-                color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF4B5563),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: () => context.go('/profile'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              side: BorderSide(
-                color: isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0),
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-            ),
-            child: Text(
-              t.t('home.actions.profile'),
-              style: TextStyle(
-                color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF4B5563),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
         ],
       ),
     ),

@@ -86,20 +86,21 @@ class SectionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = color ?? (isDark ? const Color(0xFF1E293B) : Colors.white);
-    final cardBorder = border ?? (isDark ? const Color(0xFF334155) : null);
+    final cardBorder =
+        border ?? (isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9));
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: cardBg,
-        borderRadius: BorderRadius.circular(24),
-        border: cardBorder != null ? Border.all(color: cardBorder) : null,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
-            blurRadius: 20,
-            offset: const Offset(0, 12),
+            color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),

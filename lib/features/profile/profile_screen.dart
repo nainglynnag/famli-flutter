@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../constants/timezones.dart';
 import '../../core/api_exception.dart';
-import '../../core/notifications.dart';
 import '../../l10n/translations.dart';
 import '../../models/user.dart';
 import '../../providers/api_provider.dart';
@@ -205,14 +204,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
-  }
-
-  Future<void> _triggerTestNotification(Map<String, dynamic> t) async {
-    await NotificationService.instance.ensurePermissions();
-    await NotificationService.instance.showTestNotification(
-      title: t.t('profile.testNotificationTitle'),
-      body: t.t('profile.testNotificationBody'),
-    );
   }
 
   Future<void> _logout() async {
@@ -560,28 +551,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: () => _triggerTestNotification(t),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: isDark ? const Color(0xFF475569) : const Color(0xFFE2E8F0),
-                          ),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: Text(
-                          t.t('profile.testNotification'),
-                          style: TextStyle(
-                            color: isDark ? const Color(0xFFE2E8F0) : const Color(0xFF475569),
                           ),
                         ),
                       ),
