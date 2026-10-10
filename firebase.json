@@ -1,0 +1,25 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "famli-95024",
+          "appId": "1:365440498248:android:05eed3a2c268457d76367d",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/config/firebase_options_dev.dart": {
+          "projectId": "famli-95024",
+          "configurations": {
+            "android": "1:365440498248:android:05eed3a2c268457d76367d",
+            "web": "1:365440498248:web:6f9176fa550fcc2776367d"
+          }
+        }
+      }
+    }
+  }
+}

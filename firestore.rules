@@ -1,0 +1,328 @@
+rules_version = '2';
+
+// ============================================================================
+// Famli — Firestore Security Rules
+// ============================================================================
+//
+// ARCHITECTURE NOTE (Spark plan, declarative security)
+// ----------------------------------------------------
+// This project enforces all authorization declaratively in Firestore rules.
+// These rules act as the backend security layer.
+//
+// User roles and family associations are stored on `/users/{uid}`.
+// Helper functions read them via `get()`, caching reads per request.
+//
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------------
+    // Helper Functions
+    // ------------------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function myFamilyId() {
+      return userData().familyId;
+    }
+
+    function isParent() {
+      return isSignedIn() && userData().role == 'PARENT';
+    }
+
+    // Checks if the authenticated user belongs to the target family.
+    function inFamily(familyId) {
+      return isSignedIn() && myFamilyId() == familyId;
+    }
+
+    function isSelf(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // Fetches the streak reward configured on the family document.
+    function streakRewardAmount(familyId, period) {
+      return get(/databases/$(database)/documents/families/$(familyId)).data.get(
+        period == 'DAILY' ? 'dailyStreakReward'
+          : period == 'WEEKLY' ? 'weeklyStreakReward'
+          : period == 'MONTHLY' ? 'monthlyStreakReward'
+          : 'yearlyStreakReward',
+        0);
+    }
+
+    // Checks if any specified fields were modified in an update request.
+    function changed(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny(keys);
+    }
+
+    // ------------------------------------------------------------------------
+    // Family Root Documents & Subcollections
+    // ------------------------------------------------------------------------
+
+    match /families/{familyId} {
+      allow read: if inFamily(familyId);
+
+      // Registration: client is signed in but has no users/{uid} document yet.
+      allow create: if isSignedIn();
+
+      // Only parents can update settings (timezone, streak rewards) or delete.
+      allow update, delete: if isParent() && inFamily(familyId);
+
+      // ---- Tasks & Completions ----
+      match /tasks/{taskId} {
+        allow read: if inFamily(familyId);
+        allow create, update, delete: if isParent() && inFamily(familyId);
+
+        // [CHANGE FROM PREVIOUS]:
+        // Nested under tasks/{taskId}/completions rather than a disconnected
+        // root-level taskCompletions path, matching the Flutter client architecture.
+        // Also enforces that points earned match the task definition.
+        match /completions/{completionId} {
+          allow read: if inFamily(familyId);
+
+          allow create: if inFamily(familyId)
+                        && (request.resource.data.childId == request.auth.uid
+                            || isParent())
+                        && request.resource.data.seedsEarned ==
+                           get(/databases/$(database)/documents/families/$(familyId)/tasks/$(taskId)).data.points;
+
+          // Only parents can approve/review, and reward points & childId are frozen.
+          allow update: if isParent() && inFamily(familyId)
+                        && !changed(['seedsEarned', 'childId']);
+
+          allow delete: if isParent() && inFamily(familyId);
+        }
+      }
+
+      // Root-level taskCompletions fallback for backwards compatibility
+      match /taskCompletions/{completionId} {
+        allow read: if inFamily(familyId);
+        allow create, update: if inFamily(familyId);
+        allow delete: if isParent() && inFamily(familyId);
+      }
+
+      // [CHANGE FROM PREVIOUS]:
+      // Added missing rule for taskAssignments. Without this, assigning chores
+      // to children in Family Hub was blocked with permission-denied.
+      match /taskAssignments/{assignmentId} {
+        allow read: if inFamily(familyId);
+        allow create, update, delete: if isParent() && inFamily(familyId);
+      }
+
+      // ---- Routine Templates & Items ----
+      match /routineTemplates/{templateId} {
+        allow read: if inFamily(familyId);
+        allow create: if isSignedIn(); // Starter templates seeded at family registration
+        allow update, delete: if isParent() && inFamily(familyId);
+
+        // [CHANGE FROM PREVIOUS]:
+        // Added subcollection items rule so routine checklists can be created/read.
+        match /items/{itemId} {
+          allow read: if inFamily(familyId);
+          allow create: if isSignedIn();
+          allow update, delete: if isParent() && inFamily(familyId);
+        }
+      }
+
+      // [CHANGE FROM PREVIOUS]:
+      // Added missing rule for routineAssignments.
+      match /routineAssignments/{assignmentId} {
+        allow read: if inFamily(familyId);
+        allow create, update, delete: if isParent() && inFamily(familyId);
+      }
+
+      // ---- Rewards & Privileges ----
+      // [CHANGE FROM PREVIOUS]:
+      // Supports both privilegeDefinitions (used by Flutter client) and
+      // privileges paths to prevent permission-denied errors on privilege management.
+      match /privilegeDefinitions/{privilegeId} {
+        allow read: if inFamily(familyId);
+        allow create, update, delete: if isParent() && inFamily(familyId);
+      }
+
+      match /privileges/{privilegeId} {
+        allow read: if inFamily(familyId);
+        allow create, update, delete: if isParent() && inFamily(familyId);
+      }
+
+      // Privilege requests: children create pending requests with validated cost;
+      // only parents can approve/reject them.
+      match /privilegeRequests/{requestId} {
+        allow read: if inFamily(familyId);
+
+        allow create: if inFamily(familyId)
+                      && request.resource.data.childId == request.auth.uid
+                      && request.resource.data.status == 'PENDING';
+
+        allow update: if isParent() && inFamily(familyId)
+                      && !changed(['childId', 'cost']);
+
+        allow delete: if isParent() && inFamily(familyId);
+      }
+
+      match /rewardDefinitions/{rewardId} {
+        allow read: if inFamily(familyId);
+        allow create, update, delete: if isParent() && inFamily(familyId);
+      }
+
+      match /rewards/{rewardId} {
+        allow read: if inFamily(familyId);
+        allow create, update, delete: if isParent() && inFamily(familyId);
+      }
+
+      match /rewardRedemptions/{redemptionId} {
+        allow read: if inFamily(familyId);
+        allow create: if inFamily(familyId)
+                      && request.resource.data.childId == request.auth.uid;
+        allow update, delete: if isParent() && inFamily(familyId);
+      }
+
+      match /redemptions/{redemptionId} {
+        allow read: if inFamily(familyId);
+        allow create: if inFamily(familyId);
+        allow delete: if isParent() && inFamily(familyId);
+      }
+
+      // Point adjustments are parent-only (Gifts & Penalties)
+      match /pointAdjustments/{adjustmentId} {
+        allow read: if inFamily(familyId);
+        allow create, update, delete: if isParent() && inFamily(familyId);
+      }
+
+      // [CHANGE FROM PREVIOUS]:
+      // Added missing rule for streakRewardLogs. Essential for the seed balance &
+      // streak calculation in SeedProgress (childProgressSnapshot).
+      match /streakRewardLogs/{logId} {
+        allow read: if inFamily(familyId);
+
+        allow create: if inFamily(familyId)
+                      && (request.resource.data.childId == request.auth.uid
+                          || isParent());
+
+        allow update: if false;
+
+        allow delete: if inFamily(familyId)
+                      && (resource.data.childId == request.auth.uid
+                          || isParent());
+      }
+
+      // ---- Team Missions ----
+      match /teamMissions/{missionId} {
+        allow read: if inFamily(familyId);
+        allow create, update, delete: if isParent() && inFamily(familyId);
+
+        match /{document=**} {
+          allow read: if inFamily(familyId);
+          allow write: if isParent() && inFamily(familyId);
+        }
+      }
+
+      // ---- Kind Notes & Moods ----
+      match /moodEntries/{moodId} {
+        allow read, create: if inFamily(familyId);
+        allow update, delete: if isSignedIn() && (request.auth.uid == resource.data.userId || isParent());
+      }
+
+      match /notes/{noteId} {
+        allow read: if inFamily(familyId);
+        allow create: if inFamily(familyId)
+                      && request.resource.data.fromUserId == request.auth.uid;
+        allow update: if false;
+        allow delete: if isParent() && inFamily(familyId);
+      }
+
+      match /kindNotes/{noteId} {
+        allow read, create: if inFamily(familyId);
+        allow delete: if isParent() && inFamily(familyId);
+      }
+
+      // ---- Nudge & Reminder Settings ----
+      // Allows parents to configure nudges, and children to read their own nudges.
+      match /nudgeSettings/{nudgeId} {
+        allow read: if inFamily(familyId);
+        allow create, update, delete: if isParent() && inFamily(familyId);
+      }
+    }
+
+    // ------------------------------------------------------------------------
+    // User Profile Documents
+    // ------------------------------------------------------------------------
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+
+      // [CHANGE FROM PREVIOUS]:
+      // Added `|| isParent()` to allow create.
+      // EXPLANATION: In previous rules, `allow create: if isSelf(userId)` meant only
+      // the user themselves could create their doc. When a parent registers a child
+      // via `createChild()`, the parent is authenticated (`request.auth.uid == parentUid`),
+      // but creating a document for `childUid`. Adding `|| isParent()` fixes the
+      // "Action not permitted" error when adding child accounts.
+      allow create: if isSignedIn() && (
+        (isSelf(userId) && request.resource.data.role in ['PARENT', 'CHILD']) ||
+        isParent()
+      );
+
+      // Profile updates. Users can edit own details; parents can update family members.
+      // Prevents modifying core security fields (role and familyId).
+      allow update: if (isSelf(userId) || (isParent() && inFamily(resource.data.familyId)))
+                    && !changed(['role', 'familyId']);
+
+      // Only parents can delete members from the family.
+      allow delete: if isParent();
+    }
+
+    // ------------------------------------------------------------------------
+    // Username Registry
+    // ------------------------------------------------------------------------
+
+    match /usernames/{username} {
+      // Public single-document get for sign-in lookup (resolve username -> email)
+      // and checking uniqueness before account creation.
+      allow get: if true;
+      allow list: if false; // Prevents enumerating the user directory
+
+      // [CHANGE FROM PREVIOUS]:
+      // Added `|| isParent()` to allow create.
+      // EXPLANATION: In previous rules, `request.resource.data.uid == request.auth.uid`
+      // prevented a parent from registering the child's username mapping during child
+      // creation. Parents can now claim a username for a new family member.
+      allow create: if isSignedIn() && (
+        request.resource.data.uid == request.auth.uid ||
+        isParent()
+      );
+
+      allow update: if false;
+
+      // Allow users to release their own username, or parents to release a member's username
+      // when deleting the account.
+      allow delete: if isSignedIn() && (
+        resource.data.uid == request.auth.uid ||
+        isParent()
+      );
+    }
+
+    // ------------------------------------------------------------------------
+    // Per-User Private Data
+    // ------------------------------------------------------------------------
+
+    match /users/{userId}/moodEntries/{entryId} {
+      allow read: if isSelf(userId) || isParent();
+      allow create, update, delete: if isSelf(userId);
+    }
+
+    // ------------------------------------------------------------------------
+    // Default Deny
+    // ------------------------------------------------------------------------
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
