@@ -18,6 +18,7 @@ import '../../widgets/theme_mode_toggle.dart';
 import '../../widgets/user_avatar.dart';
 import '../auth/widgets/language_toggle.dart';
 import 'package:image_picker/image_picker.dart';
+import 'widgets/timezone_picker_sheet.dart';
 
 /// Mirrors mobile/app/(app)/profile.tsx: display name, avatar tone, family
 /// timezone (parents only), password change, test notification, and logout.
@@ -33,10 +34,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   late final TextEditingController _currentPassword = TextEditingController();
   late final TextEditingController _newPassword = TextEditingController();
   late final TextEditingController _familyTimezone;
-  final FocusNode _timezoneFocus = FocusNode();
 
   late String _avatarTone;
-  bool _showTimezoneSuggestions = false;
+  bool _autoSyncTimezone = false;
+  String? _deviceTimezoneId;
   bool _saving = false;
   bool _uploadingPhoto = false;
 
@@ -49,24 +50,64 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _familyTimezone = TextEditingController(
       text: profile?.family?.timezone ?? '',
     );
-    _timezoneFocus.addListener(() {
-      if (!_timezoneFocus.hasFocus) {
-        setState(() => _showTimezoneSuggestions = false);
-      }
-    });
-    if (_familyTimezone.text.isEmpty) {
-      _resolveDeviceTimezone();
-    }
+    _resolveDeviceTimezone();
   }
 
   Future<void> _resolveDeviceTimezone() async {
     try {
       final resolved = await FlutterTimezone.getLocalTimezone();
-      if (mounted && _familyTimezone.text.isEmpty) {
-        _familyTimezone.text = resolved.identifier;
+      final id = resolved.identifier;
+      if (mounted) {
+        setState(() {
+          _deviceTimezoneId = id;
+          if (_familyTimezone.text.isEmpty) {
+            _familyTimezone.text = id;
+            _autoSyncTimezone = true;
+          } else if (_familyTimezone.text == id) {
+            _autoSyncTimezone = true;
+          }
+        });
       }
     } catch (_) {
-      // Leave the field blank if the platform can't resolve a timezone.
+      final offset = DateTime.now().timeZoneOffset;
+      final match = findTimezoneByOffset(offset);
+      if (match != null && mounted) {
+        setState(() {
+          _deviceTimezoneId = match.name;
+          if (_familyTimezone.text.isEmpty) {
+            _familyTimezone.text = match.name;
+            _autoSyncTimezone = true;
+          } else if (_familyTimezone.text == match.name) {
+            _autoSyncTimezone = true;
+          }
+        });
+      }
+    }
+  }
+
+  void _toggleAutoSync(bool value) {
+    setState(() {
+      _autoSyncTimezone = value;
+      if (value && _deviceTimezoneId != null) {
+        _familyTimezone.text = _deviceTimezoneId!;
+      }
+    });
+  }
+
+  Future<void> _openTimezonePicker(BuildContext context, Map<String, dynamic> t) async {
+    final selected = await TimezonePickerSheet.show(
+      context,
+      selectedTimezone: _familyTimezone.text,
+      deviceTimezone: _deviceTimezoneId,
+      t: t,
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _familyTimezone.text = selected.name;
+        if (_deviceTimezoneId != null && selected.name != _deviceTimezoneId) {
+          _autoSyncTimezone = false;
+        }
+      });
     }
   }
 
@@ -76,7 +117,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _currentPassword.dispose();
     _newPassword.dispose();
     _familyTimezone.dispose();
-    _timezoneFocus.dispose();
     super.dispose();
   }
 
@@ -213,6 +253,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<AuthState>>(authProvider, (previous, next) {
+      final p = next.value?.profile;
+      if (p != null) {
+        if (_name.text.isEmpty && p.name.isNotEmpty) {
+          _name.text = p.name;
+        }
+        final famTz = p.family?.timezone;
+        if (_familyTimezone.text.isEmpty && famTz != null && famTz.isNotEmpty) {
+          setState(() {
+            _familyTimezone.text = famTz;
+            if (_deviceTimezoneId != null && _deviceTimezoneId == famTz) {
+              _autoSyncTimezone = true;
+            }
+          });
+        }
+      }
+    });
+
     final t = ref.watch(translationsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final profile = ref.watch(authProvider).value?.profile;
@@ -222,18 +280,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             as Map<String, dynamic>? ??
         const {};
 
-    final query = _familyTimezone.text.trim().toLowerCase();
-    final suggestions = (query.isEmpty
-            ? commonTimezones
-            : commonTimezones
-                .where(
-                  (tz) =>
-                      tz.name.toLowerCase().contains(query) ||
-                      tz.offset.toLowerCase().contains(query),
-                )
-                .toList())
-        .take(8)
-        .toList();
+    final currentTzString = _familyTimezone.text.isNotEmpty
+        ? _familyTimezone.text
+        : (profile?.family?.timezone ?? _deviceTimezoneId ?? 'UTC');
+    final selectedTzOption = findTimezoneByName(currentTzString) ??
+        findTimezoneByName(_familyTimezone.text) ??
+        findTimezoneByName(_deviceTimezoneId);
 
     return Column(
       children: [
@@ -432,60 +484,172 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       }).toList(),
                     ),
                     if (isParent) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       _FieldLabel(t.t('profile.familyTimezoneLabel')),
-                      const SizedBox(height: 6),
-                      TextField(
-                        controller: _familyTimezone,
-                        focusNode: _timezoneFocus,
-                        autocorrect: false,
-                        style: TextStyle(
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          fontWeight: FontWeight.w600,
-                        ),
-                        onTap: () =>
-                            setState(() => _showTimezoneSuggestions = true),
-                        onChanged: (_) =>
-                            setState(() => _showTimezoneSuggestions = true),
-                        decoration: _inputDecoration(context),
-                      ),
-                      if (_showTimezoneSuggestions && suggestions.isNotEmpty)
-                        Container(
-                          margin: const EdgeInsets.only(top: 6),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                            border: Border.all(
-                              color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                            ),
-                            borderRadius: BorderRadius.circular(10),
+                      const SizedBox(height: 8),
+
+                      // Auto-Sync Switch Tile
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                           ),
-                          constraints: const BoxConstraints(maxHeight: 220),
-                          child: ListView(
-                            shrinkWrap: true,
-                            children: suggestions.map((tz) {
-                              return InkWell(
-                                onTap: () {
-                                  _familyTimezone.text = tz.name;
-                                  setState(
-                                    () => _showTimezoneSuggestions = false,
-                                  );
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 10,
-                                  ),
-                                  child: Text(
-                                    '${tz.name} (${tz.offset})',
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6C63FF).withValues(alpha: isDark ? 0.25 : 0.12),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.sync_rounded,
+                                size: 18,
+                                color: Color(0xFF6C63FF),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    t.t('profile.autoSyncTimezone'),
                                     style: TextStyle(
-                                      color: isDark ? Colors.white : const Color(0xFF1F2937),
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                      color: isDark ? Colors.white : const Color(0xFF0F172A),
                                     ),
                                   ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    t.t('profile.autoSyncSubtitle'),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch.adaptive(
+                              value: _autoSyncTimezone,
+                              activeTrackColor: const Color(0xFF6C63FF),
+                              onChanged: _toggleAutoSync,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+
+                      // Selected Timezone & Location Card
+                      InkWell(
+                        onTap: _autoSyncTimezone ? null : () => _openTimezonePicker(context, t),
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _autoSyncTimezone
+                                  ? const Color(0xFF10B981).withValues(alpha: 0.45)
+                                  : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    selectedTzOption?.flag ?? '🌐',
+                                    style: const TextStyle(fontSize: 20),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          selectedTzOption?.locationLabel ??
+                                              (_familyTimezone.text.isEmpty
+                                                  ? 'Select Timezone'
+                                                  : _familyTimezone.text),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 14,
+                                            color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 1),
+                                        Text(
+                                          '${selectedTzOption?.name ?? _familyTimezone.text} • ${selectedTzOption?.offset ?? "UTC"}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (selectedTzOption != null)
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        selectedTzOption.currentTimeFormatted,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: isDark ? const Color(0xFFA5B4FC) : const Color(0xFF4F46E5),
+                                        ),
+                                      ),
+                                    ),
+                                  if (!_autoSyncTimezone) ...[
+                                    const SizedBox(width: 6),
+                                    Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              if (_autoSyncTimezone) ...[
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.check_circle_rounded,
+                                      size: 14,
+                                      color: Color(0xFF10B981),
+                                    ),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      t.t('profile.autoSyncedBadge'),
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: Color(0xFF10B981),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              );
-                            }).toList(),
+                              ],
+                            ],
                           ),
                         ),
+                      ),
                     ],
                     const SizedBox(height: 12),
                     _FieldLabel(t.t('profile.currentPasswordLabel')),
