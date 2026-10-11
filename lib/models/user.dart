@@ -120,14 +120,20 @@ class LoginResponse {
 }
 
 class RegisterParentPayload {
-  RegisterParentPayload({required this.familyName, required this.parent});
+  RegisterParentPayload({
+    required this.familyName,
+    required this.parent,
+    this.timezone,
+  });
 
   final String familyName;
   final RegisterParentDetails parent;
+  final String? timezone;
 
   Map<String, dynamic> toJson() => {
     'familyName': familyName,
     'parent': parent.toJson(),
+    if (timezone != null) 'timezone': timezone,
   };
 }
 

@@ -44,6 +44,65 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     });
   }
 
+  Future<void> _handleUndo(TaskHistoryEntry entry, Map<String, dynamic> t) async {
+    final token = ref.read(authProvider).value?.token;
+    if (token == null || entry.taskId == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t.t('tasks.undo')),
+        content: Text(
+          'Move "${entry.taskTitle}" back to pending and deduct ${entry.points ?? 0} seeds from ${entry.childName ?? 'the child'}\'s balance?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(t.t('tasks.back')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+            child: Text(t.t('tasks.undo')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ref.read(apiClientProvider).completeTask(
+            token,
+            entry.taskId!,
+            childId: entry.childId,
+            status: 'PENDING',
+          );
+      ref.invalidate(tasksProvider);
+      ref.invalidate(childSeedBalanceProvider);
+      ref.invalidate(todayPointEntriesProvider);
+      ref.invalidate(familyOverviewProvider);
+      setState(() {
+        _future = _load();
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Task moved back to pending and seeds deducted'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to undo task: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = ref.watch(translationsProvider);
@@ -144,6 +203,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           entry: entry,
                           isParent: isParent,
                           t: t,
+                          onUndo: isParent ? () => _handleUndo(entry, t) : null,
                         ),
                       )
                       .toList(),
@@ -209,11 +269,13 @@ class _HistoryCard extends StatelessWidget {
     required this.entry,
     required this.isParent,
     required this.t,
+    this.onUndo,
   });
 
   final TaskHistoryEntry entry;
   final bool isParent;
   final Map<String, dynamic> t;
+  final VoidCallback? onUndo;
 
   @override
   Widget build(BuildContext context) {
@@ -267,15 +329,35 @@ class _HistoryCard extends StatelessWidget {
           ),
           if (isParent)
             Padding(
-              padding: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.only(top: 8),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  AvatarDot(tone: entry.childAvatarTone, size: 10),
-                  const SizedBox(width: 8),
-                  Text(
-                    entry.childName ?? '',
-                    style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF6B7280)),
+                  Row(
+                    children: [
+                      AvatarDot(tone: entry.childAvatarTone, size: 10),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${entry.childName ?? ''}${entry.points != null ? ' • ${entry.points} ${t.t('home.seedsSuffix')}' : ''}',
+                        style: TextStyle(color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF6B7280)),
+                      ),
+                    ],
                   ),
+                  if (completed && onUndo != null)
+                    OutlinedButton.icon(
+                      onPressed: onUndo,
+                      icon: const Icon(Icons.undo_rounded, size: 14),
+                      label: Text(t.t('tasks.undo')),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        visualDensity: VisualDensity.compact,
+                        foregroundColor: const Color(0xFFDC2626),
+                        side: const BorderSide(color: Color(0xFFFCA5A5)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             )

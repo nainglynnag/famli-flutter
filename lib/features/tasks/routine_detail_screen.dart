@@ -346,6 +346,27 @@ class _RoutineFormState extends ConsumerState<_RoutineForm> {
                   );
                 }).toList(),
               ),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 15,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Tasks from this routine will appear on children\'s screens only on active days.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -356,10 +377,10 @@ class _RoutineFormState extends ConsumerState<_RoutineForm> {
             children: [
               Text(
                 '${_items.length} ${t.t('tasks.routineTasksLabel')}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1F2937),
+                  color: isDark ? Colors.white : const Color(0xFF1F2937),
                 ),
               ),
               const SizedBox(height: 8),

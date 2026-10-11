@@ -176,6 +176,8 @@ class TaskHistoryEntry {
     required this.taskTitle,
     required this.status,
     required this.date,
+    this.taskId,
+    this.childId,
     this.childName,
     this.points,
     this.childAvatarTone,
@@ -183,6 +185,8 @@ class TaskHistoryEntry {
 
   final String id;
   final String taskTitle;
+  final String? taskId;
+  final String? childId;
   final String? childName;
   final num? points;
   final String? childAvatarTone;
@@ -192,6 +196,8 @@ class TaskHistoryEntry {
   factory TaskHistoryEntry.fromJson(Map<String, dynamic> json) =>
       TaskHistoryEntry(
         id: json['id'] as String,
+        taskId: json['taskId'] as String?,
+        childId: json['childId'] as String?,
         taskTitle: json['taskTitle'] as String,
         childName: json['childName'] as String?,
         points: json['points'] as num?,

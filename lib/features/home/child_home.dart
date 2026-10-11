@@ -50,6 +50,7 @@ class _ChildHomeState extends ConsumerState<ChildHome> {
   }
 
   Future<void> _completeTask(String taskId, bool markCompleted) async {
+    if (!markCompleted) return; // Children cannot undo tasks; only parents can.
     final token = ref.read(authProvider).value?.token;
     if (token == null) return;
     await ref
@@ -57,13 +58,13 @@ class _ChildHomeState extends ConsumerState<ChildHome> {
         .completeTask(
           token,
           taskId,
-          status: markCompleted ? 'COMPLETED' : 'PENDING',
+          status: 'COMPLETED',
         );
     ref.invalidate(tasksProvider);
+    ref.invalidate(childSeedBalanceProvider);
+    ref.invalidate(todayPointEntriesProvider);
     unawaited(ref.read(authProvider.notifier).refreshProfile());
-    if (markCompleted) {
-      setState(() => _confettiTrigger += 1);
-    }
+    setState(() => _confettiTrigger += 1);
   }
 
   @override
@@ -875,28 +876,64 @@ class _TaskCard extends StatelessWidget {
               ),
               if (expanded) ...[
                 const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  height: 44,
-                  child: FilledButton(
-                    onPressed: onToggleComplete,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: isCompleted
-                          ? const Color(0xFF4B5563)
-                          : const Color(0xFF6C63FF),
-                      shape: RoundedRectangleBorder(
+                if (isCompleted)
+                  MouseRegion(
+                    cursor: SystemMouseCursors.basic,
+                    child: Container(
+                      width: double.infinity,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? const Color(0xFF064E3B).withValues(alpha: 0.3)
+                            : const Color(0xFFDCFCE7),
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFF86EFAC),
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            color: Color(0xFF16A34A),
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            t.t('home.taskStatusCompleted'),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF16A34A),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    child: Text(
-                      isCompleted ? t.t('home.undo') : t.t('home.markComplete'),
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                  )
+                else
+                  SizedBox(
+                    width: double.infinity,
+                    height: 44,
+                    child: FilledButton(
+                      onPressed: onToggleComplete,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF6C63FF),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        t.t('home.markComplete'),
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
-                ),
               ],
             ],
           ),
@@ -1003,34 +1040,68 @@ class _RoutineGridTaskCard extends StatelessWidget {
             ),
             if (expanded) ...[
               const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                height: 42,
-                child: FilledButton(
-                  onPressed: onToggleComplete,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: isCompleted
-                        ? const Color(0xFF4B5563)
-                        : const Color(0xFF6C63FF),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 4,
-                    ),
-                    shape: RoundedRectangleBorder(
+              if (isCompleted)
+                MouseRegion(
+                  cursor: SystemMouseCursors.basic,
+                  child: Container(
+                    width: double.infinity,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? const Color(0xFF064E3B).withValues(alpha: 0.3)
+                          : const Color(0xFFDCFCE7),
                       borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFF86EFAC)),
+                    ),
+                    alignment: Alignment.center,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.check_circle_rounded,
+                          color: Color(0xFF16A34A),
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          t.t('home.taskStatusCompleted'),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF16A34A),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      isCompleted ? t.t('home.undo') : t.t('home.markComplete'),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  height: 42,
+                  child: FilledButton(
+                    onPressed: onToggleComplete,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF6C63FF),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        t.t('home.markComplete'),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
             ],
           ],
         ),

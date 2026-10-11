@@ -159,6 +159,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 : () => _handleLogin(t),
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFF6C63FF),
+                              enabledMouseCursor: SystemMouseCursors.click,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
@@ -194,13 +195,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               style: TextStyle(color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF6B7280)),
                             ),
                             const SizedBox(width: 6),
-                            GestureDetector(
-                              onTap: () => context.go('/register'),
-                              child: Text(
-                                t.t('auth.login.createOne'),
-                                style: const TextStyle(
-                                  color: Color(0xFF6C63FF),
-                                  fontWeight: FontWeight.w600,
+                            MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: () => context.go('/register'),
+                                child: Text(
+                                  t.t('auth.login.createOne'),
+                                  style: const TextStyle(
+                                    color: Color(0xFF6C63FF),
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),

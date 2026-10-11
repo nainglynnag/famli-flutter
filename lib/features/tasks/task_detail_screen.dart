@@ -26,6 +26,9 @@ class TaskDetailScreen extends ConsumerWidget {
     Future<void> invalidate() async {
       ref.invalidate(taskDetailProvider(taskId));
       ref.invalidate(tasksProvider);
+      ref.invalidate(childSeedBalanceProvider);
+      ref.invalidate(todayPointEntriesProvider);
+      ref.invalidate(familyOverviewProvider);
     }
 
     Future<void> assign(String childId) async {
@@ -232,9 +235,9 @@ class TaskDetailScreen extends ConsumerWidget {
                                     const SizedBox(width: 8),
                                     Text(
                                       assignment.childName,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.w600,
-                                        color: Color(0xFF111827),
+                                        color: isDark ? Colors.white : const Color(0xFF111827),
                                       ),
                                     ),
                                   ],
@@ -310,10 +313,10 @@ class TaskDetailScreen extends ConsumerWidget {
                     children: [
                       Text(
                         t.t('tasks.childAssignHeader'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1F2937),
+                          color: isDark ? Colors.white : const Color(0xFF1F2937),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -340,9 +343,9 @@ class TaskDetailScreen extends ConsumerWidget {
                                   vertical: 6,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF8FAFC),
+                                  color: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
                                   border: Border.all(
-                                    color: const Color(0xFFE2E8F0),
+                                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                                   ),
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -358,8 +361,8 @@ class TaskDetailScreen extends ConsumerWidget {
                                     const SizedBox(width: 8),
                                     Text(
                                       child.name,
-                                      style: const TextStyle(
-                                        color: Color(0xFF1F2937),
+                                      style: TextStyle(
+                                        color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF1F2937),
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -386,10 +389,10 @@ class TaskDetailScreen extends ConsumerWidget {
                     children: [
                       Text(
                         t.t('tasks.recentActivity'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1F2937),
+                          color: isDark ? Colors.white : const Color(0xFF1F2937),
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -417,9 +420,9 @@ class TaskDetailScreen extends ConsumerWidget {
                                       children: [
                                         Text(
                                           completion.childName,
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontWeight: FontWeight.w600,
-                                            color: Color(0xFF111827),
+                                            color: isDark ? Colors.white : const Color(0xFF111827),
                                           ),
                                         ),
                                         LightText(_formatDate(completion.date)),

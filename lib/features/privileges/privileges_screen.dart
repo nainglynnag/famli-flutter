@@ -173,6 +173,10 @@ class PrivilegesScreen extends ConsumerWidget {
               : lastRequest?.status == PrivilegeRequestStatus.pending
                   ? t.t('childPrivileges.pendingStatus')
                   : t.t('childPrivileges.requestButton');
+      final num rawSeedsLeft = privilege.cost - availableSeeds;
+      final seedsLeft = rawSeedsLeft > 0
+          ? (rawSeedsLeft % 1 == 0 ? rawSeedsLeft.toInt() : rawSeedsLeft)
+          : 0;
 
       return Container(
         padding: const EdgeInsets.all(14),
@@ -246,7 +250,7 @@ class PrivilegesScreen extends ConsumerWidget {
             if (insufficientSeeds) ...[
               const SizedBox(height: 4),
               Text(
-                '${t.t('childPrivileges.needSeeds')} ${privilege.cost} ${t.t('childPrivileges.seedsSuffix')} ($availableSeeds ${t.t('childPrivileges.leftSuffix')})',
+                '${t.t('childPrivileges.needSeeds')} ${privilege.cost} ${t.t('childPrivileges.seedsSuffix')} ($seedsLeft ${t.t('childPrivileges.leftSuffix')})',
                 style: const TextStyle(
                   color: Color(0xFFEA580C),
                   fontSize: 10,

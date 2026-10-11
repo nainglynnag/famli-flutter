@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -49,6 +51,9 @@ class _ChildTasksView extends ConsumerWidget {
           .read(apiClientProvider)
           .completeTask(token, taskId, status: 'COMPLETED');
       ref.invalidate(tasksProvider);
+      ref.invalidate(childSeedBalanceProvider);
+      ref.invalidate(todayPointEntriesProvider);
+      unawaited(ref.read(authProvider.notifier).refreshProfile());
     }
 
     return Column(
@@ -1202,7 +1207,10 @@ class _TemplateCard extends StatelessWidget {
                     return Container(
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                          width: 2,
+                        ),
                       ),
                       child: Tooltip(
                         message: a.childName,
@@ -1267,6 +1275,27 @@ class _TemplateCard extends StatelessWidget {
                   ),
                 )
                 .toList(),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.info_outline_rounded,
+                size: 14,
+                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'Tasks appear on children\'s screens only on active days.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           Divider(color: isDark ? const Color(0xFF334155) : const Color(0xFFF3F4F6), height: 1),

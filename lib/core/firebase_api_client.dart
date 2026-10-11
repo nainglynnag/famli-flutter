@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 import '../constants/nudge_templates.dart';
 import '../constants/starter_templates.dart';
+import '../constants/timezones.dart';
 import '../models/family.dart';
 import '../models/nudge.dart';
 import '../models/point.dart';
@@ -112,6 +114,9 @@ class FirebaseApiClient implements ApiClient {
   /// Translates Firebase's error codes into the same user-facing messages the
   /// Express API returned, so existing screens keep showing sensible text.
   Never _rethrowAsApiException(Object error) {
+    if (kDebugMode) {
+      debugPrint('[FirebaseApiClient error]: $error');
+    }
     if (error is ApiException) throw error;
     if (error is FirebaseAuthException) {
       throw ApiException(switch (error.code) {
@@ -253,10 +258,11 @@ class FirebaseApiClient implements ApiClient {
     try {
       final familyRef = _db.collection('families').doc();
       final batch = _db.batch();
+      final timezone = payload.timezone ?? await _resolveDeviceTimezone();
 
       batch.set(familyRef, {
         'name': payload.familyName,
-        'timezone': 'UTC',
+        'timezone': timezone,
         'dailyStreakReward': 0,
         'weeklyStreakReward': 0,
         'monthlyStreakReward': 0,
@@ -470,6 +476,14 @@ class FirebaseApiClient implements ApiClient {
       });
       await batch.commit();
     } catch (e) {
+      if (e is FirebaseException) {
+        debugPrint(
+          '🔥 [Member Batch Commit Error] code: ${e.code}, '
+          'message: ${e.message}, '
+          'operation: _createMember($role), '
+          'isExpectedParent: ${parentUid == _auth.currentUser?.uid}',
+        );
+      }
       // Roll back the created Auth account if Firestore write fails
       try {
         final app = await secondaryApp();
@@ -918,6 +932,7 @@ class FirebaseApiClient implements ApiClient {
         final data = doc.data();
         rows.add({
           'id': doc.id,
+          'taskId': task.id,
           'taskTitle': task.data()['title'],
           'childId': data['childId'],
           'points': data['seedsEarned'],
@@ -941,6 +956,8 @@ class FirebaseApiClient implements ApiClient {
       entries.add(
         TaskHistoryEntry(
           id: row['id'] as String,
+          taskId: row['taskId'] as String?,
+          childId: row['childId'] as String?,
           taskTitle: row['taskTitle'] as String,
           childName: child?['name'] as String?,
           points: row['points'] as num?,
@@ -1034,17 +1051,39 @@ class FirebaseApiClient implements ApiClient {
 
     final normalizedStatus = status ?? 'COMPLETED';
 
-    // The rules pin seedsEarned to the task's own points value whatever the
-    // status, so a client cannot inflate it. Only COMPLETED entries are
-    // counted toward the balance — see SeedProgress.calculateSeedBalance.
-    await _tasks(familyId).doc(taskId).collection('completions').add({
-      'taskId': taskId,
-      'childId': targetChildId,
-      'status': normalizedStatus,
-      'seedsEarned': task['points'],
-      'date': Timestamp.fromDate(startOfDayInTimeZone(timeZone)),
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    // Deterministic ID prevents duplicate completions for the same child, task, and date.
+    final dayKey = startOfDayInTimeZone(timeZone).toIso8601String().split('T').first;
+    final completionRef = _tasks(familyId)
+        .doc(taskId)
+        .collection('completions')
+        .doc('${targetChildId}_$dayKey');
+
+    final existing = await completionRef.get();
+    if (existing.exists && existing.data()?['status'] == normalizedStatus) {
+      // Already recorded with the target status today — idempotent no-op.
+      return;
+    }
+
+    final earnedSeeds = normalizedStatus == 'COMPLETED' ? task['points'] : 0;
+
+    if (existing.exists) {
+      // If updating existing status (e.g. parent undoing or re-completing), update status and seedsEarned.
+      await completionRef.update({
+        'status': normalizedStatus,
+        'seedsEarned': earnedSeeds,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } else {
+      // Create new completion with verified points matching rules.
+      await completionRef.set({
+        'taskId': taskId,
+        'childId': targetChildId,
+        'status': normalizedStatus,
+        'seedsEarned': earnedSeeds,
+        'date': Timestamp.fromDate(startOfDayInTimeZone(timeZone)),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
 
     if (normalizedStatus == 'COMPLETED') {
       await _progress.maybeAwardStreakRewards(
@@ -2396,5 +2435,16 @@ class FirebaseApiClient implements ApiClient {
     final hour = int.parse(match.group(1)!);
     if (hour > 23) return null;
     return '${hour.toString().padLeft(2, '0')}:${match.group(2)}';
+  }
+
+  static Future<String> _resolveDeviceTimezone() async {
+    try {
+      final resolved = await FlutterTimezone.getLocalTimezone();
+      return resolved.identifier;
+    } catch (_) {
+      final offset = DateTime.now().timeZoneOffset;
+      final match = findTimezoneByOffset(offset);
+      return match?.name ?? 'UTC';
+    }
   }
 }

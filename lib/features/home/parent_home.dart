@@ -39,10 +39,75 @@ class _ParentHomeState extends ConsumerState<ParentHome> {
             status: 'COMPLETED',
           );
       ref.invalidate(tasksProvider);
+      ref.invalidate(familyOverviewProvider);
+      ref.invalidate(childSeedBalanceProvider);
+      ref.invalidate(todayPointEntriesProvider);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to complete task: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _undoForChild(
+    String taskId,
+    String childId,
+    String childName,
+    String taskTitle,
+    Map<String, dynamic> t,
+  ) async {
+    final token = ref.read(authProvider).value?.token;
+    if (token == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t.t('tasks.undo')),
+        content: Text(
+          'Move "$taskTitle" back to pending and deduct seeds from $childName\'s balance?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(t.t('tasks.back')),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+            child: Text(t.t('tasks.undo')),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    try {
+      await ref.read(apiClientProvider).completeTask(
+            token,
+            taskId,
+            childId: childId,
+            status: 'PENDING',
+          );
+      ref.invalidate(tasksProvider);
+      ref.invalidate(familyOverviewProvider);
+      ref.invalidate(childSeedBalanceProvider);
+      ref.invalidate(todayPointEntriesProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Task moved back to pending and seeds deducted'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to undo task: $e')),
         );
       }
     }
@@ -465,14 +530,40 @@ class _ParentHomeState extends ConsumerState<ParentHome> {
                     (a) => Padding(
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           AvatarDot(tone: a.childAvatarTone),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               '${a.childName} finished ${a.taskTitle}',
-                              style: const TextStyle(color: Color(0xFF6B7280)),
+                              style: TextStyle(
+                                color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF4B5563),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            onPressed: () => _undoForChild(
+                              a.taskId,
+                              a.childId,
+                              a.childName,
+                              a.taskTitle,
+                              t,
+                            ),
+                            icon: const Icon(Icons.undo_rounded, size: 14),
+                            label: Text(t.t('tasks.undo')),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                              foregroundColor: const Color(0xFFDC2626),
+                              side: const BorderSide(color: Color(0xFFFCA5A5)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                           ),
                         ],

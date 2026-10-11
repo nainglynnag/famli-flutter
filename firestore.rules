@@ -68,8 +68,10 @@ service cloud.firestore {
     match /families/{familyId} {
       allow read: if inFamily(familyId);
 
-      // Registration: client is signed in but has no users/{uid} document yet.
-      allow create: if isSignedIn();
+      // Registration: client is signed in and creates their family and parent profile in the same batch
+      allow create: if isSignedIn()
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.familyId == familyId
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'PARENT';
 
       // Only parents can update settings (timezone, streak rewards) or delete.
       allow update, delete: if isParent() && inFamily(familyId);
@@ -87,14 +89,40 @@ service cloud.firestore {
           allow read: if inFamily(familyId);
 
           allow create: if inFamily(familyId)
-                        && (request.resource.data.childId == request.auth.uid
-                            || isParent())
-                        && request.resource.data.seedsEarned ==
-                           get(/databases/$(database)/documents/families/$(familyId)/tasks/$(taskId)).data.points;
+                        && (request.resource.data.childId == request.auth.uid || isParent())
+                        && (
+                          (request.resource.data.status == 'COMPLETED'
+                           && request.resource.data.seedsEarned ==
+                              get(/databases/$(database)/documents/families/$(familyId)/tasks/$(taskId)).data.points)
+                          ||
+                          (isParent()
+                           && request.resource.data.status == 'PENDING'
+                           && request.resource.data.seedsEarned == 0)
+                        );
 
-          // Only parents can approve/review, and reward points & childId are frozen.
-          allow update: if isParent() && inFamily(familyId)
-                        && !changed(['seedsEarned', 'childId']);
+          // Completion updates:
+          // 1. Parent can toggle COMPLETED <-> PENDING (undo or review).
+          //    When PENDING, seedsEarned must strictly be 0.
+          //    When COMPLETED, seedsEarned must strictly match task points.
+          // 2. Child can ONLY transition PENDING -> COMPLETED (re-completing chore).
+          //    Child CANNOT undo (cannot transition COMPLETED -> PENDING).
+          // 3. Immutable fields: childId.
+          allow update: if inFamily(familyId)
+                        && request.resource.data.childId == resource.data.childId
+                        && (
+                          (isParent()
+                           && request.resource.data.status in ['COMPLETED', 'PENDING']
+                           && request.resource.data.seedsEarned ==
+                              (request.resource.data.status == 'COMPLETED'
+                               ? get(/databases/$(database)/documents/families/$(familyId)/tasks/$(taskId)).data.points
+                               : 0))
+                          ||
+                          (resource.data.childId == request.auth.uid
+                           && resource.data.status == 'PENDING'
+                           && request.resource.data.status == 'COMPLETED'
+                           && request.resource.data.seedsEarned ==
+                              get(/databases/$(database)/documents/families/$(familyId)/tasks/$(taskId)).data.points)
+                        );
 
           allow delete: if isParent() && inFamily(familyId);
         }
@@ -195,14 +223,13 @@ service cloud.firestore {
         allow create, update, delete: if isParent() && inFamily(familyId);
       }
 
-      // [CHANGE FROM PREVIOUS]:
-      // Added missing rule for streakRewardLogs. Essential for the seed balance &
-      // streak calculation in SeedProgress (childProgressSnapshot).
       match /streakRewardLogs/{logId} {
         allow read: if inFamily(familyId);
 
         allow create: if inFamily(familyId)
-                      && (request.resource.data.childId == request.auth.uid
+                      && (request.resource.data.childId == request.auth.uid || isParent())
+                      && logId.matches('^' + request.resource.data.childId + '_' + request.resource.data.period + '_.*')
+                      && (request.resource.data.seedsEarned == streakRewardAmount(familyId, request.resource.data.period)
                           || isParent());
 
         allow update: if false;
@@ -255,18 +282,22 @@ service cloud.firestore {
     // ------------------------------------------------------------------------
 
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        isSelf(userId) ||
+        (resource.data.familyId != null && inFamily(resource.data.familyId))
+      );
 
-      // [CHANGE FROM PREVIOUS]:
-      // Added `|| isParent()` to allow create.
-      // EXPLANATION: In previous rules, `allow create: if isSelf(userId)` meant only
-      // the user themselves could create their doc. When a parent registers a child
-      // via `createChild()`, the parent is authenticated (`request.auth.uid == parentUid`),
-      // but creating a document for `childUid`. Adding `|| isParent()` fixes the
-      // "Action not permitted" error when adding child accounts.
+      // Parent registration and member creation.
+      // - Initial parent registration: verified atomically with the new family document.
+      // - Member creation (child or co-parent): must be created by an authenticated parent in their own family.
       allow create: if isSignedIn() && (
-        (isSelf(userId) && request.resource.data.role in ['PARENT', 'CHILD']) ||
-        isParent()
+        (isSelf(userId)
+         && request.resource.data.role == 'PARENT'
+         && getAfter(/databases/$(database)/documents/families/$(request.resource.data.familyId)).data != null)
+        ||
+        (isParent()
+         && inFamily(request.resource.data.familyId)
+         && request.resource.data.role in ['CHILD', 'PARENT'])
       );
 
       // Profile updates. Users can edit own details; parents can update family members.
@@ -274,8 +305,8 @@ service cloud.firestore {
       allow update: if (isSelf(userId) || (isParent() && inFamily(resource.data.familyId)))
                     && !changed(['role', 'familyId']);
 
-      // Only parents can delete members from the family.
-      allow delete: if isParent();
+      // Only parents can delete members from their own family.
+      allow delete: if isParent() && inFamily(resource.data.familyId);
     }
 
     // ------------------------------------------------------------------------
@@ -313,7 +344,11 @@ service cloud.firestore {
     // ------------------------------------------------------------------------
 
     match /users/{userId}/moodEntries/{entryId} {
-      allow read: if isSelf(userId) || isParent();
+      allow read: if isSelf(userId) || (
+        isParent() &&
+        myFamilyId() != null &&
+        get(/databases/$(database)/documents/users/$(userId)).data.familyId == myFamilyId()
+      );
       allow create, update, delete: if isSelf(userId);
     }
 

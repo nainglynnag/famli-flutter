@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../constants/timezones.dart';
 import '../../core/api_exception.dart';
 import '../../l10n/translations.dart';
 import '../../models/user.dart';
@@ -53,11 +55,22 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
     setState(() => _submitting = true);
     try {
+      String? timezone;
+      try {
+        final resolved = await FlutterTimezone.getLocalTimezone();
+        timezone = resolved.identifier;
+      } catch (_) {
+        final offset = DateTime.now().timeZoneOffset;
+        final match = findTimezoneByOffset(offset);
+        timezone = match?.name;
+      }
+
       await ref
           .read(authProvider.notifier)
           .registerParent(
             RegisterParentPayload(
               familyName: familyName,
+              timezone: timezone,
               parent: RegisterParentDetails(
                 name: name,
                 username: username.toLowerCase(),
@@ -148,8 +161,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           label: t.t('auth.register.familyNameLabel'),
                           child: TextField(
                             controller: _familyNameController,
+                            style: const TextStyle(
+                              color: Color(0xFF1E293B),
+                              fontWeight: FontWeight.w500,
+                            ),
                             decoration: _inputDecoration(
                               t.t('auth.register.familyNamePlaceholder'),
+                              isDark: Theme.of(context).brightness == Brightness.dark,
                             ),
                           ),
                         ),
@@ -158,8 +176,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           label: t.t('auth.register.yourNameLabel'),
                           child: TextField(
                             controller: _nameController,
+                            style: const TextStyle(
+                              color: Color(0xFF1E293B),
+                              fontWeight: FontWeight.w500,
+                            ),
                             decoration: _inputDecoration(
                               t.t('auth.register.yourNamePlaceholder'),
+                              isDark: Theme.of(context).brightness == Brightness.dark,
                             ),
                           ),
                         ),
@@ -169,8 +192,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           child: TextField(
                             controller: _emailController,
                             keyboardType: TextInputType.emailAddress,
+                            style: const TextStyle(
+                              color: Color(0xFF1E293B),
+                              fontWeight: FontWeight.w500,
+                            ),
                             decoration: _inputDecoration(
                               t.t('auth.register.emailPlaceholder'),
+                              isDark: Theme.of(context).brightness == Brightness.dark,
                             ),
                           ),
                         ),
@@ -179,8 +207,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           label: t.t('auth.register.usernameLabel'),
                           child: TextField(
                             controller: _usernameController,
+                            style: const TextStyle(
+                              color: Color(0xFF1E293B),
+                              fontWeight: FontWeight.w500,
+                            ),
                             decoration: _inputDecoration(
                               t.t('auth.register.usernamePlaceholder'),
+                              isDark: Theme.of(context).brightness == Brightness.dark,
                             ),
                           ),
                         ),
@@ -190,8 +223,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           child: TextField(
                             controller: _passwordController,
                             obscureText: true,
+                            style: const TextStyle(
+                              color: Color(0xFF1E293B),
+                              fontWeight: FontWeight.w500,
+                            ),
                             decoration: _inputDecoration(
                               t.t('auth.register.passwordPlaceholder'),
+                              isDark: Theme.of(context).brightness == Brightness.dark,
                             ),
                           ),
                         ),
@@ -204,6 +242,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                 : () => _handleRegister(t),
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFF2EC4B6),
+                              enabledMouseCursor: SystemMouseCursors.click,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
@@ -231,21 +270,25 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
                               t.t('auth.register.haveAccount'),
                               style: const TextStyle(color: Color(0xFF6B7280)),
                             ),
                             const SizedBox(width: 6),
-                            GestureDetector(
-                              onTap: () => context.go('/login'),
-                              child: Text(
-                                t.t('auth.register.signIn'),
-                                style: const TextStyle(
-                                  color: Color(0xFF2EC4B6),
-                                  fontWeight: FontWeight.w600,
+                            MouseRegion(
+                              cursor: SystemMouseCursors.click,
+                              child: GestureDetector(
+                                onTap: () => context.go('/login'),
+                                child: Text(
+                                  t.t('auth.register.signIn'),
+                                  style: const TextStyle(
+                                    color: Color(0xFF2EC4B6),
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                               ),
                             ),
@@ -264,18 +307,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 }
 
-InputDecoration _inputDecoration(String hint) => InputDecoration(
+InputDecoration _inputDecoration(String hint, {bool isDark = false}) => InputDecoration(
   hintText: hint,
+  hintStyle: const TextStyle(color: Color(0xFF64748B)),
   filled: true,
-  fillColor: const Color(0xFFF9FAFB),
+  fillColor: isDark ? const Color(0xFFE2E8F0) : const Color(0xFFF9FAFB),
   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
   border: OutlineInputBorder(
     borderRadius: BorderRadius.circular(12),
-    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+    borderSide: BorderSide(
+      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFFE5E7EB),
+    ),
   ),
   enabledBorder: OutlineInputBorder(
     borderRadius: BorderRadius.circular(12),
-    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+    borderSide: BorderSide(
+      color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFFE5E7EB),
+    ),
   ),
 );
 
